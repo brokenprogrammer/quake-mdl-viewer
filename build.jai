@@ -2,6 +2,8 @@
 
 OUTPUT_EXECUTABLE_NAME := "quake_mdl_viewer";
 OUTPUT_DIRECTORY_NAME := "build";
+RESOURCE_OUTPUT_DIRECTORY_NAME := "build";
+
 
 #run {
     make_directory_if_it_does_not_exist(OUTPUT_DIRECTORY_NAME, recursive = true);
@@ -12,3 +14,4 @@ OUTPUT_DIRECTORY_NAME := "build";
 
 #import "Basic";
 #import "File";
+#import "File_Utilities";
