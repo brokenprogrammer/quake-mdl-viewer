@@ -5,8 +5,9 @@
 #import "Math";
 
 glu_lib :: #system_library "glu32";
-
 gluPerspective :: (fovy: GLdouble, aspect: GLdouble, zNear: GLdouble, zFar: GLdouble) #foreign glu_lib;
+
+#load "render.jai";
 
 Vector3_Float32 :: struct {
     x, y, z: float32;
@@ -350,6 +351,8 @@ main :: () {
         }    
     }
 
+    init_buffers(gl_texcoords, gl_triangles);
+
     exit := false;
     while !exit {
         event : SDL_Event;
@@ -362,14 +365,14 @@ main :: () {
                         exit = true;
                     }
                     else if event.key.keysym.sym == SDLK_RIGHT {
-                        mdl_file_index = (mdl_file_index + 1) % mdl_files.count;
+                        // mdl_file_index = (mdl_file_index + 1) % mdl_files.count;
 
-                        for pak_files {
-                            if contains(to_string(it.name.data), mdl_files[mdl_file_index]) {
-                                load_mdl(file, it, color_palette);
-                                break;
-                            }    
-                        }
+                        // for pak_files {
+                        //     if contains(to_string(it.name.data), mdl_files[mdl_file_index]) {
+                        //         load_mdl(file, it, color_palette);
+                        //         break;
+                        //     }    
+                        // }
                     }
                 case SDL_WINDOWEVENT;
                     if event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED {
@@ -394,14 +397,16 @@ main :: () {
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glViewport(0, 0, xx w, xx h);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
+        // glMatrixMode(GL_PROJECTION);
+        // glLoadIdentity();
 
         aspect: float = cast(float) w / h;
-        gluPerspective(60.0, aspect, 0.1, 1000.0);
+        // gluPerspective(60.0, aspect, 0.1, 1000.0);
 
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
+        // glMatrixMode(GL_MODELVIEW);
+        // glLoadIdentity();
+
+
         // glTranslated(0, 0, -90);
         // glRotated(angle, 0, 1, 0);
         // glRotated(-90, 1, 0, 0);
@@ -420,25 +425,27 @@ main :: () {
         // glVertexPointer(3, GL_FLOAT, size_of(GLfloat) * 3, *vertices);
         // glDrawElements(GL_TRIANGLES, gl_triangle_count * 3, GL_UNSIGNED_INT, *gl_triangles);
 
-        glTranslatef(0, 0, -90);
-        glRotatef(angle, 0, 1, 0);
-        glRotatef(-90, 1, 0, 0);
-        glTranslatef(0, 0, -10.0);
+        // glTranslatef(0, 0, -90);
+        // glRotatef(angle, 0, 1, 0);
+        // glRotatef(-90, 1, 0, 0);
+        // glTranslatef(0, 0, -10.0);
 
-        glBegin(GL_TRIANGLES);
-        for i: 0..gl_triangle_count - 1 {
-            for j: 0..2 {
-                index : = gl_triangles[i][j];
-                glTexCoord2f(gl_texcoords[index][0], gl_texcoords[index][1]);
-                v: [3]GLfloat;
-                v[0] = gl_vertices[frame][index][0] * (1.0 - anim_lerp) + gl_vertices[frame_next][index][0] * anim_lerp;
-                v[1] = gl_vertices[frame][index][1] * (1.0 - anim_lerp) + gl_vertices[frame_next][index][1] * anim_lerp;
-                v[2] = gl_vertices[frame][index][2] * (1.0 - anim_lerp) + gl_vertices[frame_next][index][2] * anim_lerp;
+        // glBegin(GL_TRIANGLES);
+        // for i: 0..gl_triangle_count - 1 {
+        //     for j: 0..2 {
+        //         index : = gl_triangles[i][j];
+        //         glTexCoord2f(gl_texcoords[index][0], gl_texcoords[index][1]);
+        //         v: [3]GLfloat;
+        //         v[0] = gl_vertices[frame][index][0] * (1.0 - anim_lerp) + gl_vertices[frame_next][index][0] * anim_lerp;
+        //         v[1] = gl_vertices[frame][index][1] * (1.0 - anim_lerp) + gl_vertices[frame_next][index][1] * anim_lerp;
+        //         v[2] = gl_vertices[frame][index][2] * (1.0 - anim_lerp) + gl_vertices[frame_next][index][2] * anim_lerp;
 
-                glVertex3fv(v.data);
-            }
-        }
-        glEnd();
+        //         glVertex3fv(v.data);
+        //     }
+        // }
+        // glEnd();
+
+        render(gl_vertices, gl_vertex_count, frame, frame_next, anim_lerp, aspect, texture, angle);
 
         SDL_GL_SwapWindow(window);
     }
