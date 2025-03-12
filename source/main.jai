@@ -7,6 +7,7 @@
 glu_lib :: #system_library "glu32";
 gluPerspective :: (fovy: GLdouble, aspect: GLdouble, zNear: GLdouble, zFar: GLdouble) #foreign glu_lib;
 
+#load "anorms.jai";
 #load "render.jai";
 
 Vector3_Float32 :: struct {
@@ -84,6 +85,7 @@ MAX_FRAME_COUNT :: 256;
 ANIMATION_FRAMES_PER_SECOND :: 10;
 
 gl_vertices: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Vertices
+gl_normals: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Normals
 gl_texcoords: [2*MAX_VERTEX_COUNT][2]GLfloat;                   // Tex coords
 gl_triangles: [MAX_TRIANGLE_COUNT][3]GLuint;                    // Index buffer
 gl_triangle_count: GLsizei;
@@ -95,7 +97,7 @@ anim_name: [MAX_FRAME_COUNT][16]u8;
 tex: [1024*1024]u8;
 texrgb: [1024*1024*3]u8;
 
-mdl_files: [..]string;
+mdl_file_names: [..]string;
 
 load_colorpalette :: (file: File, pak_files: []PakFile) -> []Vector3_U8 {
     for pak_files {
@@ -211,6 +213,17 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader) {
             gl_vertices[frame][k + mdl_header.vertex_count][0] = gl_vertices[frame][k][0];
             gl_vertices[frame][k + mdl_header.vertex_count][1] = gl_vertices[frame][k][1];
             gl_vertices[frame][k + mdl_header.vertex_count][2] = gl_vertices[frame][k][2];
+
+
+            // Front
+            gl_normals[frame][k][0] = anorms_table[vertices[k].normal_index].x;
+            gl_normals[frame][k][1] = anorms_table[vertices[k].normal_index].y;
+            gl_normals[frame][k][2] = anorms_table[vertices[k].normal_index].z;
+
+            // Back
+            gl_normals[frame][k + mdl_header.vertex_count][0] = gl_normals[frame][k][0];
+            gl_normals[frame][k + mdl_header.vertex_count][1] = gl_normals[frame][k][1];
+            gl_normals[frame][k + mdl_header.vertex_count][2] = gl_normals[frame][k][2];
         }
     }
 }
@@ -276,7 +289,7 @@ load_pak :: (file: File) -> [] PakFile {
 
         pak_file := cast(*PakFile)buffer;
         if contains(to_string(pak_file.name.data), ".mdl") {
-            array_add(*mdl_files, copy_string(to_string(pak_file.name.data)));
+            array_add(*mdl_file_names, copy_string(to_string(pak_file.name.data)));
         }
 
         array_add(*pak_files, pak_file.*);
@@ -344,8 +357,9 @@ main :: () {
 
     mdl_file_index := 0;
 
+    // mdl_file_names[mdl_file_index]) {
     for pak_files {
-        if contains(to_string(it.name.data), mdl_files[mdl_file_index]) {
+        if contains(to_string(it.name.data), "player.mdl") {
             load_mdl(file, it, color_palette);
             break;
         }    
@@ -385,9 +399,9 @@ main :: () {
         time: float = cast(float) SDL_GetTicks() / 1000;
         angle: float = fmod_cycling(-180 + time * 360 / 5, 360);
 
-        anim: float = time * ANIMATION_FRAMES_PER_SECOND;
-        anim_lerp: float = fmod_cycling(anim, 1.0);
-        frame: int = cast(int)anim % gl_frame_count;
+        anim: float = 0;//time * ANIMATION_FRAMES_PER_SECOND;
+        anim_lerp: float = 0;//fmod_cycling(anim, 1.0);
+        frame: int = 0;//cast(int)anim % gl_frame_count;
         frame_next: int = (frame + 1) % gl_frame_count;
 
         curr_anim: [16]u8; 

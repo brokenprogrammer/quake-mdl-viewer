@@ -2,6 +2,7 @@ g_shader: GLuint;
 g_VAO: GLuint;
 g_VBO_Pos: GLuint;
 g_VBO_Texcoords: GLuint;
+g_VBO_Normals: GLuint;
 g_EBO: GLuint;
 
 #scope_file 
@@ -100,6 +101,7 @@ init_buffers :: (gl_texcoords: [2*MAX_VERTEX_COUNT][2]GLfloat, gl_triangles: [MA
     glGenVertexArrays(1, *g_VAO);
     glGenBuffers(1, *g_VBO_Pos);
     glGenBuffers(1, *g_VBO_Texcoords);
+    glGenBuffers(1, *g_VBO_Normals);
     glGenBuffers(1, *g_EBO);
 
     glBindVertexArray(g_VAO);
@@ -116,6 +118,12 @@ init_buffers :: (gl_texcoords: [2*MAX_VERTEX_COUNT][2]GLfloat, gl_triangles: [MA
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * size_of(GLfloat), cast(*void)0);
     glEnableVertexAttribArray(1);
 
+    // Normals VBO (will update per frame) ?
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Normals);
+    glBufferData(GL_ARRAY_BUFFER, size_of(GLfloat) * ((2 * MAX_VERTEX_COUNT) * 3), null, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 3 * size_of(GLfloat), cast(*void)0);
+    glEnableVertexAttribArray(2);
+
     // Elements (Triangles) VBO (static)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(GLfloat) * MAX_TRIANGLE_COUNT * 3, gl_triangles.data, GL_STATIC_DRAW);
@@ -127,13 +135,21 @@ render :: (gl_vertices: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat, gl_vert
     glUseProgram(g_shader);
 
     vertices: [2 * MAX_VERTEX_COUNT * 3]GLfloat;
+    normals: [2 * MAX_VERTEX_COUNT * 3]GLfloat;
     for 0..(2 * gl_vertex_count) - 1 {
         vertices[3 * it + 0] = gl_vertices[frame][it][0] * (1.0 - anim_lerp) + gl_vertices[frame_next][it][0] * anim_lerp;
         vertices[3 * it + 1] = gl_vertices[frame][it][1] * (1.0 - anim_lerp) + gl_vertices[frame_next][it][1] * anim_lerp;
         vertices[3 * it + 2] = gl_vertices[frame][it][2] * (1.0 - anim_lerp) + gl_vertices[frame_next][it][2] * anim_lerp;
+
+        normals[3 * it + 0] = gl_normals[frame][it][0];
+        normals[3 * it + 1] = gl_normals[frame][it][1];
+        normals[3 * it + 2] = gl_normals[frame][it][2];
     }
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Pos);
     glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(GLfloat) * ((2 * MAX_VERTEX_COUNT) - 1), *vertices);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Normals);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(GLfloat) * ((2 * MAX_VERTEX_COUNT) - 1), *normals);
 
     projection_matrix := make_projection_matrix(60.0 * PI / 180.0, aspect, 0.1, 1000.0);
     view_matrix := make_translation_matrix4 (Vector3.{0.0, 0.0, -90.0});
@@ -149,6 +165,13 @@ render :: (gl_vertices: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat, gl_vert
     glUniformMatrix4fv(glGetUniformLocation(g_shader, "projection"), 1, GL_TRUE, *projection_matrix.coef[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(g_shader, "view"), 1, GL_TRUE, *view_matrix.coef[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(g_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
+
+    lightPos := float32.[5.0, 10.0, 5.0];
+    lightColor := float32.[1.0, 1.0, 1.0];
+
+    glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, lightPos.data);
+    glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
+
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -166,26 +189,51 @@ END
 VERTEX_SHADER :: #string GLSL
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
+layout (location = 2) in vec3 aNormal;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
 out vec2 TexCoord;
+out vec3 Normal;
+out vec3 FragPos;
 
 void main() {
     gl_Position = projection * view * model * vec4(aPos, 1.0);
+    
     TexCoord = aTexCoord;
+    Normal = aNormal;
+    FragPos = vec3(model * vec4(aPos, 1.0));
 }
 GLSL
 
 FRAGMENT_SHADER :: #string GLSL
 in vec2 TexCoord;
+in vec3 Normal;
+in vec3 FragPos;
+
 out vec4 FragColor;
 
 uniform sampler2D texture1;
 
+uniform vec3 lightPos; 
+uniform vec3 viewPos; 
+uniform vec3 lightColor;
+
 void main() {
-    FragColor = texture(texture1, TexCoord);
+    // ambient
+    float ambientStrength = 0.1;
+    vec3 ambient = ambientStrength * lightColor;
+
+    // diffuse 
+    vec3 norm = normalize(Normal);
+    vec3 lightDir = normalize(lightPos - FragPos);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = diff * lightColor;
+
+    vec4 objectColor = texture(texture1, TexCoord);
+    vec4 result = vec4(ambient + diffuse, 1.0) * objectColor;
+    FragColor = result;//texture(texture1, TexCoord);
 }
 GLSL
