@@ -1,14 +1,22 @@
 #import "Basic";
 #import "String";
-#import "SDL";
-#import "GL"(DUMP_GL_ERRORS = true,ENABLE_ALL_EXTENSIONS=true);
+#import "Window_Creation";
+#import "Input";
+#import "GL";
 #import "Math";
 
-glu_lib :: #system_library "glu32";
-gluPerspective :: (fovy: GLdouble, aspect: GLdouble, zNear: GLdouble, zFar: GLdouble) #foreign glu_lib;
+simp :: #import "Simp";
+getrect :: #import "GetRect";
 
 #load "anorms.jai";
 #load "render.jai";
+#load "camera.jai";
+
+g_window : Window_Type;
+g_current_window_width, g_current_window_height : s32;
+g_running : bool;
+g_camera : Camera;
+g_control_camera : bool = true;
 
 Vector3_Float32 :: struct {
     x, y, z: float32;
@@ -98,6 +106,82 @@ tex: [1024*1024]u8;
 texrgb: [1024*1024*3]u8;
 
 mdl_file_names: [..]string;
+
+handle_window_event :: (event : Event)
+{
+	getrect.getrect_handle_event (event);
+	if event.type ==
+	{
+	case .QUIT;
+		g_running = false;
+	case .KEYBOARD;
+		if event.key_pressed
+		{
+			if event.key_code == .ESCAPE
+				set_camera_control (!g_control_camera);
+			if event.key_code == .F4 && event.alt_pressed
+				g_running = false;
+		}
+	}
+}
+
+set_camera_control :: inline (control : bool)
+{
+	g_control_camera = control;
+	if g_control_camera
+		hide_cursor ();
+	else
+		show_cursor ();
+}
+
+is_key_down :: inline (key : Key_Code) -> bool #must
+{
+	return (input_button_states[cast (s64) key] & .DOWN) != 0;
+}
+
+show_cursor :: inline ()
+{
+	#if OS == .WINDOWS
+	{
+		win32 :: #import "Windows";
+		win32.ShowCursor (1);
+	}
+	else
+	{
+		// @Todo!
+	}
+}
+
+hide_cursor :: inline ()
+{
+	#if OS == .WINDOWS
+	{
+		win32 :: #import "Windows";
+		win32.ShowCursor (0);
+	}
+	else
+	{
+		// @Todo!
+	}
+}
+
+set_mouse_pointer_position :: inline (x : int, y : int)
+{
+	#if OS == .WINDOWS
+	{
+		// Windows module does not have SetCursorPos
+		// win32 :: #import "Windows";
+		// win32.SetCursorPos (xx x, xx y);
+		// Hugh...
+		user32 :: #system_library "User32";
+		SetCursorPos :: (x : s32, y : s32) -> s32 #foreign user32;
+		SetCursorPos (xx x, xx y);
+	}
+	else
+	{
+		// @Todo!
+	}
+}
 
 load_colorpalette :: (file: File, pak_files: []PakFile) -> []Vector3_U8 {
     for pak_files {
@@ -302,29 +386,16 @@ load_pak :: (file: File) -> [] PakFile {
 }
 
 main :: () {
-    SDL_Init(SDL_INIT_VIDEO);
-
-    w := 640;
-    h := 480;
-    window := SDL_CreateWindow("An SDL2 window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, xx w, xx h, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
-
-    // Check that the window was successfully created
-    if window == null {
-        // In the case that the window could not be made...
-        print("Could not create window: %\n", to_string(SDL_GetError()));
-        return;
-    }
-
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, xx SDL_GL_CONTEXT_PROFILE_CORE);
-
-    gl_context := SDL_GL_CreateContext(window);
-    if !gl_context {
-        print( "Could not create OpenGL context: %\n", to_string(SDL_GetError()));
-        return;
-    }  
-
-    gl_load(*gl, SDL_GL_GetProcAddress);
-    using gl;
+    #if OS == .WINDOWS
+	{
+		win32 :: #import "Windows";
+		win32.SetProcessDPIAware ();
+	}
+    
+    g_current_window_width = 1280;
+    g_current_window_height = 720;
+	g_window = create_window (g_current_window_width, g_current_window_height, "quake-mdl-viewer");
+    simp.set_render_target (g_window);
 
     print ("GL Vendor = %\n", to_string(glGetString(GL_VENDOR)));
     print ("GL Version = %\n", to_string(glGetString(GL_VERSION)));
@@ -337,13 +408,6 @@ main :: () {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glEnableClientState(GL_VERTEX_ARRAY);
-
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_DEPTH_TEST);
-    glClearColor(0.2, 0.2, 0.2, 1.0);
 
     file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
     if !file_success {
@@ -367,36 +431,58 @@ main :: () {
 
     init_buffers(gl_texcoords, gl_triangles);
 
-    exit := false;
-    while !exit {
-        event : SDL_Event;
-        while SDL_PollEvent(*event) {
-            if event.type == {
-                case SDL_QUIT;
-                    exit = true;
-                case SDL_KEYUP;
-                    if event.key.keysym.sym == SDLK_ESCAPE {
-                        exit = true;
-                    }
-                    else if event.key.keysym.sym == SDLK_RIGHT {
-                        // mdl_file_index = (mdl_file_index + 1) % mdl_files.count;
+    g_camera.position = xyz (1, 1.3, 2.3);
+	g_camera.euler_angles.x = -20 * PI / 180.0;
+	g_camera.euler_angles.y = 10 * PI / 180.0;
+	g_running = true;
+	delta_time := 0.01667;
+    running_time := 0.0;
+    while g_running {
+        frame_start := current_time_monotonic();
+        reset_temporary_storage();
+        update_window_events ();
+        for get_window_resizes () {
+			if it.window == g_window
+			&& ((g_current_window_width != it.width) || (g_current_window_height != it.height)) {
+				g_current_window_width = it.width;
+				g_current_window_height = it.height;
+			}
+		}
 
-                        // for pak_files {
-                        //     if contains(to_string(it.name.data), mdl_files[mdl_file_index]) {
-                        //         load_mdl(file, it, color_palette);
-                        //         break;
-                        //     }    
-                        // }
-                    }
-                case SDL_WINDOWEVENT;
-                    if event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED {
-                        w = event.window.data1;
-                        h = event.window.data2;
-                    }
-            }
+        for events_this_frame {
+			handle_window_event (it);
         }
 
-        time: float = cast(float) SDL_GetTicks() / 1000;
+        update_frame(delta_time);
+
+        // event : SDL_Event;
+        // while SDL_PollEvent(*event) {
+        //     if event.type == {
+        //         case SDL_QUIT;
+        //             exit = true;
+        //         case SDL_KEYUP;
+        //             if event.key.keysym.sym == SDLK_ESCAPE {
+        //                 exit = true;
+        //             }
+        //             else if event.key.keysym.sym == SDLK_RIGHT {
+        //                 // mdl_file_index = (mdl_file_index + 1) % mdl_files.count;
+
+        //                 // for pak_files {
+        //                 //     if contains(to_string(it.name.data), mdl_files[mdl_file_index]) {
+        //                 //         load_mdl(file, it, color_palette);
+        //                 //         break;
+        //                 //     }    
+        //                 // }
+        //             }
+        //         case SDL_WINDOWEVENT;
+        //             if event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED {
+        //                 w = event.window.data1;
+        //                 h = event.window.data2;
+        //             }
+        //     }
+        // }
+
+        time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
         angle: float = fmod_cycling(-180 + time * 360 / 5, 360);
 
         anim: float = 0;//time * ANIMATION_FRAMES_PER_SECOND;
@@ -404,67 +490,55 @@ main :: () {
         frame: int = 0;//cast(int)anim % gl_frame_count;
         frame_next: int = (frame + 1) % gl_frame_count;
 
-        curr_anim: [16]u8; 
-        memcpy(curr_anim.data, *anim_name[frame], 16);
-        title := sprint("q1 - %", to_string(curr_anim.data));
-        SDL_SetWindowTitle(window, title.data);
+        // curr_anim: [16]u8; 
+        // memcpy(curr_anim.data, *anim_name[frame], 16);
+        // title := sprint("q1 - %", to_string(curr_anim.data));
+        // SDL_SetWindowTitle(window, title.data);
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glViewport(0, 0, xx w, xx h);
-        // glMatrixMode(GL_PROJECTION);
-        // glLoadIdentity();
+        glViewport(0, 0, xx g_current_window_width, xx g_current_window_height);
 
-        aspect: float = cast(float) w / h;
-        // gluPerspective(60.0, aspect, 0.1, 1000.0);
-
-        // glMatrixMode(GL_MODELVIEW);
-        // glLoadIdentity();
-
-
-        // glTranslated(0, 0, -90);
-        // glRotated(angle, 0, 1, 0);
-        // glRotated(-90, 1, 0, 0);
-        // glTranslated(0, 0, -10.0);
-
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // glTexCoordPointer(2, GL_FLOAT, size_of(GLfloat)*2, *gl_texcoords);
-
-        // vertices: [2 * MAX_VERTEX_COUNT * 3]GLfloat;
-        // for 0..(2 * gl_vertex_count) - 1 {
-        //     vertices[3 * it + 0] = gl_vertices[frame][it][0] * (1.0 - anim_lerp) + gl_vertices[frame_next][it][0] * anim_lerp;
-        //     vertices[3 * it + 1] = gl_vertices[frame][it][1] * (1.0 - anim_lerp) + gl_vertices[frame_next][it][1] * anim_lerp;
-        //     vertices[3 * it + 2] = gl_vertices[frame][it][2] * (1.0 - anim_lerp) + gl_vertices[frame_next][it][2] * anim_lerp;
-        // }
-
-        // glVertexPointer(3, GL_FLOAT, size_of(GLfloat) * 3, *vertices);
-        // glDrawElements(GL_TRIANGLES, gl_triangle_count * 3, GL_UNSIGNED_INT, *gl_triangles);
-
-        // glTranslatef(0, 0, -90);
-        // glRotatef(angle, 0, 1, 0);
-        // glRotatef(-90, 1, 0, 0);
-        // glTranslatef(0, 0, -10.0);
-
-        // glBegin(GL_TRIANGLES);
-        // for i: 0..gl_triangle_count - 1 {
-        //     for j: 0..2 {
-        //         index : = gl_triangles[i][j];
-        //         glTexCoord2f(gl_texcoords[index][0], gl_texcoords[index][1]);
-        //         v: [3]GLfloat;
-        //         v[0] = gl_vertices[frame][index][0] * (1.0 - anim_lerp) + gl_vertices[frame_next][index][0] * anim_lerp;
-        //         v[1] = gl_vertices[frame][index][1] * (1.0 - anim_lerp) + gl_vertices[frame_next][index][1] * anim_lerp;
-        //         v[2] = gl_vertices[frame][index][2] * (1.0 - anim_lerp) + gl_vertices[frame_next][index][2] * anim_lerp;
-
-        //         glVertex3fv(v.data);
-        //     }
-        // }
-        // glEnd();
+        aspect: float = cast(float) g_current_window_width / g_current_window_height;
+        
+        glDepthMask (GL_TRUE);
+		glEnable (GL_DEPTH_TEST);
+        simp.update_window (g_window);
+		simp.clear_render_target (0.1, 0.1, 0.1, 1);
+        glClear (GL_DEPTH_BUFFER_BIT);
 
         render(gl_vertices, gl_vertex_count, frame, frame_next, anim_lerp, aspect, texture, angle);
 
-        SDL_GL_SwapWindow(window);
+        // Draw coordinate axes
+		draw_line (.{}, .{x=1}, .{x=1, w=1});
+		draw_line (.{}, .{y=1}, .{y=1, w=1});
+		draw_line (.{}, .{z=1}, .{z=1, w=1});
+
+		// Draw grid
+		for i : -25..25 {
+			draw_line (xyz (xx i, 0, -25), xyz (xx i, 0, 25), .{0.4, 0.4, 0.4, 1});
+        }
+		for i : -25..25 {
+			draw_line (xyz (-25, 0, xx i), xyz (25, 0, xx i), .{0.4, 0.4, 0.4, 1});
+        }
+
+        simp.swap_buffers (g_window);
+
+        frame_end := current_time_monotonic();
+		delta_time = cast (float) to_float64_seconds(frame_end - frame_start);
+        running_time += delta_time;
+    }
+}
+
+update_frame :: (delta_time : float)
+{
+	if !input_application_has_focus && g_control_camera {
+		set_camera_control (false);
     }
 
+	// Lock the cursor in the middle of the screen when controlling the camera
+	if g_control_camera {
+		x, y, w, h := get_dimensions (g_window, false);
+		set_mouse_pointer_position (w / 2, h / 2);
+	}
 
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+	update_flying_camera (*g_camera, delta_time);
 }
