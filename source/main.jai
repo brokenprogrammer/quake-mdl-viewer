@@ -11,6 +11,7 @@ getrect :: #import "GetRect";
 #load "anorms.jai";
 #load "render.jai";
 #load "camera.jai";
+#load "ui.jai";
 
 g_window : Window_Type;
 g_current_window_width, g_current_window_height : s32;
@@ -137,6 +138,11 @@ set_camera_control :: inline (control : bool)
 is_key_down :: inline (key : Key_Code) -> bool #must
 {
 	return (input_button_states[cast (s64) key] & .DOWN) != 0;
+}
+
+is_key_pressed :: inline (key : Key_Code) -> bool #must
+{
+	return (input_button_states[cast (s64) key] & .START) != 0;
 }
 
 show_cursor :: inline ()
@@ -299,10 +305,10 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader) {
             gl_vertices[frame][k + mdl_header.vertex_count][2] = gl_vertices[frame][k][2];
 
 
-            // Front
-            gl_normals[frame][k][0] = anorms_table[vertices[k].normal_index].x;
-            gl_normals[frame][k][1] = anorms_table[vertices[k].normal_index].y;
-            gl_normals[frame][k][2] = anorms_table[vertices[k].normal_index].z;
+            // Front, added wraparound because some models seems to have indexes out of boudns..
+            gl_normals[frame][k][0] = anorms_table[vertices[k].normal_index % 162].x;
+            gl_normals[frame][k][1] = anorms_table[vertices[k].normal_index % 162].y;
+            gl_normals[frame][k][2] = anorms_table[vertices[k].normal_index % 162].z;
 
             // Back
             gl_normals[frame][k + mdl_header.vertex_count][0] = gl_normals[frame][k][0];
@@ -423,7 +429,7 @@ main :: () {
 
     // mdl_file_names[mdl_file_index]) {
     for pak_files {
-        if contains(to_string(it.name.data), "player.mdl") {
+        if contains(to_string(it.name.data), "flame.mdl") {
             load_mdl(file, it, color_palette);
             break;
         }    
@@ -455,32 +461,16 @@ main :: () {
 
         update_frame(delta_time);
 
-        // event : SDL_Event;
-        // while SDL_PollEvent(*event) {
-        //     if event.type == {
-        //         case SDL_QUIT;
-        //             exit = true;
-        //         case SDL_KEYUP;
-        //             if event.key.keysym.sym == SDLK_ESCAPE {
-        //                 exit = true;
-        //             }
-        //             else if event.key.keysym.sym == SDLK_RIGHT {
-        //                 // mdl_file_index = (mdl_file_index + 1) % mdl_files.count;
-
-        //                 // for pak_files {
-        //                 //     if contains(to_string(it.name.data), mdl_files[mdl_file_index]) {
-        //                 //         load_mdl(file, it, color_palette);
-        //                 //         break;
-        //                 //     }    
-        //                 // }
-        //             }
-        //         case SDL_WINDOWEVENT;
-        //             if event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED {
-        //                 w = event.window.data1;
-        //                 h = event.window.data2;
-        //             }
-        //     }
-        // }
+        if is_key_pressed(xx #char "F") {
+            mdl_file_index = (mdl_file_index + 1) % mdl_file_names.count;
+            for pak_files {
+                if contains(to_string(it.name.data), mdl_file_names[mdl_file_index]) {
+                    load_mdl(file, it, color_palette);
+                    update_buffers(gl_texcoords, gl_triangles);
+                    break;
+                }    
+            }
+        }
 
         time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
         angle: float = fmod_cycling(-180 + time * 360 / 5, 360);

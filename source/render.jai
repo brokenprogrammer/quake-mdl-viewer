@@ -252,6 +252,16 @@ init_buffers :: (gl_texcoords: [2*MAX_VERTEX_COUNT][2]GLfloat, gl_triangles: [MA
 	glBindBuffer (GL_ARRAY_BUFFER, 0);
 }
 
+update_buffers :: (gl_texcoords: [2*MAX_VERTEX_COUNT][2]GLfloat, gl_triangles: [MAX_TRIANGLE_COUNT][3]GLuint) {
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Texcoords);
+    glBufferData(GL_ARRAY_BUFFER, size_of(GLfloat) * ((2 * MAX_VERTEX_COUNT) * 2), gl_texcoords.data, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(GLfloat) * MAX_TRIANGLE_COUNT * 3, gl_triangles.data, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 render :: (gl_vertices: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat, gl_vertex_count: GLsizei, frame: int, frame_next: int, anim_lerp: float, aspect: float, texture: GLuint, angle: float) {
     glUseProgram(g_shader);
 
@@ -262,15 +272,16 @@ render :: (gl_vertices: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat, gl_vert
         vertices[3 * it + 1] = gl_vertices[frame][it][1] * (1.0 - anim_lerp) + gl_vertices[frame_next][it][1] * anim_lerp;
         vertices[3 * it + 2] = gl_vertices[frame][it][2] * (1.0 - anim_lerp) + gl_vertices[frame_next][it][2] * anim_lerp;
 
-        normals[3 * it + 0] = gl_normals[frame][it][0];// * (1.0 - anim_lerp) + gl_normals[frame_next][it][0] * anim_lerp;
-        normals[3 * it + 1] = gl_normals[frame][it][1];// * (1.0 - anim_lerp) + gl_normals[frame_next][it][1] * anim_lerp;
-        normals[3 * it + 2] = gl_normals[frame][it][2];// * (1.0 - anim_lerp) + gl_normals[frame_next][it][2] * anim_lerp;
+        normals[3 * it + 0] = gl_normals[frame][it][0] * (1.0 - anim_lerp) + gl_normals[frame_next][it][0] * anim_lerp;
+        normals[3 * it + 1] = gl_normals[frame][it][1] * (1.0 - anim_lerp) + gl_normals[frame_next][it][1] * anim_lerp;
+        normals[3 * it + 2] = gl_normals[frame][it][2] * (1.0 - anim_lerp) + gl_normals[frame_next][it][2] * anim_lerp;
     }
+    
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Pos);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(GLfloat) * (((2 * MAX_VERTEX_COUNT)-1)), *vertices);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(GLfloat) * (((2 * gl_vertex_count) * 3)), *vertices);
 
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Normals);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(GLfloat) * (((2 * MAX_VERTEX_COUNT)-1)), *normals);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(GLfloat) * (((2 * gl_vertex_count) * 3)), *normals);
 
     r1: Quaternion;
     set_from_axis_and_angle(*r1, 0, 1, 0, angle * PI / 180.0);
