@@ -505,9 +505,9 @@ main :: () {
         time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
         angle: float = fmod_cycling(-180 + time * 360 / 5, 360);
 
-        anim: float = 0;//time * ANIMATION_FRAMES_PER_SECOND;
-        anim_lerp: float = 0;//fmod_cycling(anim, 1.0);
-        frame: int = 0;//cast(int)anim % gl_frame_count;
+        anim: float = g_params.animation_time;//time * ANIMATION_FRAMES_PER_SECOND;
+        anim_lerp: float = fmod_cycling(anim, 1.0);
+        frame: int = cast(int)anim % gl_frame_count;
         frame_next: int = (frame + 1) % gl_frame_count;
 
         // curr_anim: [16]u8; 
@@ -565,10 +565,9 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
 	update_flying_camera (*g_camera, delta_time);
 
     if g_params.mdl_index == 0 {
-        print("DID NOT UPDATE MESH INDEX");
-
+        // Did not update mesh index
     } else {
-        print("DID UPDATE!!!!!!");
+        // Did update mesh index.
         for pak_files {
             if contains(to_string(it.name.data), g_params.mdl_names[g_params.mdl_index]) {
                 load_mdl(file, it, color_palette);
@@ -578,5 +577,6 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
         }
     }
 
-    
+    g_params.animation_time += delta_time * g_params.animation_speed_in_fps;
+    g_params.animation_time = fmod_cycling(g_params.animation_time, xx gl_frame_count);
 }

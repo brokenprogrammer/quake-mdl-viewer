@@ -1,6 +1,8 @@
 g_params : struct {
     mdl_names: []string;
     mdl_index: s32;
+	frame_names: []string;
+	frame_index: s32;
 	animation_time := 0.0;
 	animation_speed_in_fps := 30.0;
 };
@@ -52,6 +54,21 @@ update_ui :: (delta_time: float) {
 		);
 	}
 	r.y -= pad;
+	// Animation selection
+	{
+		r.w = xx simp.prepare_text (g_font, "Animation: ");
+		getrect.label (r, "Animation: ", *label_theme);
+		r.x += dropdown_offset;
+		defer r.x -= dropdown_offset;
+		r.w = dropdown_width;
+		getrect.dropdown (
+			r,
+			frame_names,
+			*frame_index,
+			*dropdown_theme
+		);
+	}
+	r.y -= pad;
 	// Animation speed slider
 	{
 		r.w = w * 0.1 + xx simp.prepare_text (g_slider_font, "Animation Speed: 120.00 FPS");
@@ -60,7 +77,7 @@ update_ui :: (delta_time: float) {
 	r.y -= pad;
 	// Animation time slider
 	{
-		sample_count := 0;
+		sample_count := gl_frame_count / 1.0;
 		// if animation_index > 0
 		// {
 		// 	anim := table_find_pointer (*g_loaded_animations, animation_names[animation_index]);
