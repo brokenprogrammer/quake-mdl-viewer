@@ -19,6 +19,11 @@ g_running : bool;
 g_camera : Camera;
 g_control_camera : bool = true;
 
+g_font: *simp.Dynamic_Font;
+g_checkbox_font: *simp.Dynamic_Font;
+g_slider_font: *simp.Dynamic_Font;
+g_dropdown_font: *simp.Dynamic_Font;
+
 Vector3_Float32 :: struct {
     x, y, z: float32;
 };
@@ -93,6 +98,7 @@ MAX_VERTEX_COUNT :: 1024;
 MAX_FRAME_COUNT :: 256;
 ANIMATION_FRAMES_PER_SECOND :: 10;
 
+gl_texture: GLuint;
 gl_vertices: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Vertices
 gl_normals: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Normals
 gl_texcoords: [2*MAX_VERTEX_COUNT][2]GLfloat;                   // Tex coords
@@ -133,6 +139,22 @@ set_camera_control :: inline (control : bool)
 		hide_cursor ();
 	else
 		show_cursor ();
+}
+
+reinit_fonts :: init_fonts;
+init_fonts :: ()
+{
+	// I want a pixel size of 20 with a window height of 720 => 720 / 36 = 20
+	pixel_height := g_current_window_height / 36;
+	g_font = simp.get_font_at_size ("data/fonts", "OpenSans-Regular.ttf", pixel_height);
+	assert (g_font != null);
+	pixel_height = g_current_window_height / 40;
+	g_checkbox_font = simp.get_font_at_size ("data/fonts", "OpenSans-Regular.ttf", pixel_height);
+	assert (g_checkbox_font != null);
+	pixel_height = g_current_window_height / 45;
+	g_slider_font = simp.get_font_at_size ("data/fonts", "OpenSans-Italic.ttf", pixel_height);
+	assert (g_slider_font != null);
+	g_dropdown_font = g_slider_font;
 }
 
 is_key_down :: inline (key : Key_Code) -> bool #must
@@ -248,6 +270,9 @@ load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, color_palette: []Ve
             texrgb[3 * it + 2] = color_palette[tex[it]].z;
         }
 
+        glBindTexture(GL_TEXTURE_2D, gl_texture);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_header.tex_width, mdl_header.tex_height, 0, GL_RGB, GL_UNSIGNED_BYTE, *texrgb);
     }
 }
@@ -406,14 +431,17 @@ main :: () {
     print ("GL Vendor = %\n", to_string(glGetString(GL_VENDOR)));
     print ("GL Version = %\n", to_string(glGetString(GL_VERSION)));
     
-    texture :GLuint;
-    glGenTextures(1, *texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    getrect.ui_init ();
+	init_fonts ();
+
+    glGenTextures(1, *gl_texture);
+    glBindTexture(GL_TEXTURE_2D, gl_texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
     file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
     if !file_success {
@@ -427,13 +455,14 @@ main :: () {
 
     mdl_file_index := 0;
 
-    // mdl_file_names[mdl_file_index]) {
     for pak_files {
-        if contains(to_string(it.name.data), "flame.mdl") {
+        if contains(to_string(it.name.data), mdl_file_names[mdl_file_index]) {
             load_mdl(file, it, color_palette);
             break;
         }    
     }
+    g_params.mdl_names = mdl_file_names;
+    g_params.mdl_index = xx mdl_file_index;
 
     init_buffers(gl_texcoords, gl_triangles);
 
@@ -452,6 +481,7 @@ main :: () {
 			&& ((g_current_window_width != it.width) || (g_current_window_height != it.height)) {
 				g_current_window_width = it.width;
 				g_current_window_height = it.height;
+                reinit_fonts ();
 			}
 		}
 
@@ -459,7 +489,7 @@ main :: () {
 			handle_window_event (it);
         }
 
-        update_frame(delta_time);
+        update_frame(delta_time, file, pak_files, color_palette);
 
         if is_key_pressed(xx #char "F") {
             mdl_file_index = (mdl_file_index + 1) % mdl_file_names.count;
@@ -495,8 +525,6 @@ main :: () {
 		simp.clear_render_target (0.1, 0.1, 0.1, 1);
         glClear (GL_DEPTH_BUFFER_BIT);
 
-        render(gl_vertices, gl_vertex_count, frame, frame_next, anim_lerp, aspect, texture, angle);
-
         // Draw coordinate axes
 		draw_line (.{}, .{x=1}, .{x=1, w=1});
 		draw_line (.{}, .{y=1}, .{y=1, w=1});
@@ -510,6 +538,10 @@ main :: () {
 			draw_line (xyz (-25, 0, xx i), xyz (25, 0, xx i), .{0.4, 0.4, 0.4, 1});
         }
 
+        render(gl_vertices, gl_vertex_count, frame, frame_next, anim_lerp, aspect, gl_texture, angle);
+        
+        update_ui (delta_time);
+
         simp.swap_buffers (g_window);
 
         frame_end := current_time_monotonic();
@@ -518,7 +550,7 @@ main :: () {
     }
 }
 
-update_frame :: (delta_time : float)
+update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_palette: []Vector3_U8)
 {
 	if !input_application_has_focus && g_control_camera {
 		set_camera_control (false);
@@ -531,4 +563,20 @@ update_frame :: (delta_time : float)
 	}
 
 	update_flying_camera (*g_camera, delta_time);
+
+    if g_params.mdl_index == 0 {
+        print("DID NOT UPDATE MESH INDEX");
+
+    } else {
+        print("DID UPDATE!!!!!!");
+        for pak_files {
+            if contains(to_string(it.name.data), g_params.mdl_names[g_params.mdl_index]) {
+                load_mdl(file, it, color_palette);
+                update_buffers(gl_texcoords, gl_triangles);
+                break;
+            }    
+        }
+    }
+
+    
 }

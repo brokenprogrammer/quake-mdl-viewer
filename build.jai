@@ -10,6 +10,8 @@ RESOURCE_OUTPUT_DIRECTORY_NAME := "build";
 
     Compiler :: #import "Compiler";
     Compiler.set_build_options_dc(.{output_path="build", output_executable_name=OUTPUT_EXECUTABLE_NAME});
+
+    copy_directory("data/", tprint("%/data/", RESOURCE_OUTPUT_DIRECTORY_NAME));
 }
 
 #import "Basic";
