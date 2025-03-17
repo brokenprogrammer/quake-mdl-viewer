@@ -60,7 +60,19 @@ MDLFrame :: struct {
     name: [16]u8;
 };
 
+MDLModelFrame :: struct {
+    vertices: []Vector3_GLfloat;
+    normals: []Vector3_GLfloat;
+};
+
 MDLModel :: struct {
+    texture_width: u32;
+    texture_height: u32;
+    texture_data: []u8;
+
+    texture_coordinates: []Vector2_GLfloat;
+    indices: []Vector3_GLfloat;             // Known as triangles before, vertex indices that forms triangles.
+    frames: []MDLModelFrame;
 };
 
 load_mdl_colorpalette :: (file: File, pak_files: []PakFile) -> []Vector3_U8 {
@@ -110,22 +122,32 @@ load_mdl_header :: (file: File, pak_file: PakFile) -> bool, MDLHeader {
     return true, mdl_header;
 }
 
-load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, color_palette: []Vector3_U8) {
+load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, mdl_model : *MDLModel, color_palette: []Vector3_U8) {
     for 0..mdl_header.tex_count - 1 {
         group: u32;
         file_read(file, *group, size_of(u32));
-        file_read(file, *tex, mdl_header.tex_width * mdl_header.tex_height);
 
-        for 0..mdl_header.tex_width * mdl_header.tex_height - 1 {
-            texrgb[3 * it + 0] = color_palette[tex[it]].x;
-            texrgb[3 * it + 1] = color_palette[tex[it]].y;
-            texrgb[3 * it + 2] = color_palette[tex[it]].z;
+        texture_number_of_channels := 3;
+        texture_data_size := mdl_header.tex_width * mdl_header.tex_height; 
+        texture_buffer := cast(*u8) alloc(texture_data_size);
+        defer free(texture_buffer);
+        file_read(file, texture_buffer, texture_data_size);
+
+        // TODO(Oskar): Cleanup on model unload.
+        mdl_model.texture_data = NewArray(texture_data_size * texture_number_of_channels, u8);
+        for 0..texture_data_size - 1 {
+            palette_index := texture_buffer[it];
+            
+            mdl_model.texture_data[texture_number_of_channels * it + 0] = color_palette[palette_index].x;
+            mdl_model.texture_data[texture_number_of_channels * it + 1] = color_palette[palette_index].y;
+            mdl_model.texture_data[texture_number_of_channels * it + 2] = color_palette[palette_index].z;
         }
 
+        // TODO(Oskar): eventually move this to renderer.
         glBindTexture(GL_TEXTURE_2D, gl_texture);
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_header.tex_width, mdl_header.tex_height, 0, GL_RGB, GL_UNSIGNED_BYTE, *texrgb);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_header.tex_width, mdl_header.tex_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
     }
 }
 
@@ -195,24 +217,26 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader) {
     }
 }
 
-load_mdl :: (file: File, pak_file: PakFile, color_palette: []Vector3_U8) {
+load_mdl :: (file: File, pak_file: PakFile, color_palette: []Vector3_U8) -> MDLModel {
+    mdl_model : MDLModel;
+
     // NOTE(Oskar): Assume that file offset is in right location if this succeeds.
     mdl_header_success, mdl_header := load_mdl_header(file, pak_file);
     if !mdl_header_success {
         print("Failed to read mdl_header!");
-        return;
+        return mdl_model;
     }
 
     gl_vertex_count = mdl_header.vertex_count;
     gl_triangle_count = mdl_header.triangle_count;
     gl_frame_count = mdl_header.frame_count;
 
-    load_mdl_texture_data(file, mdl_header, color_palette);
+    load_mdl_texture_data(file, mdl_header, *mdl_model, color_palette);
     load_mdl_texcoords(file, mdl_header);
     load_mdl_triangles(file, mdl_header);
     load_mdl_vertices(file, mdl_header);
 
-    return;
+    return mdl_model;
 }
 
 load_pak :: (file: File) -> [] PakFile {

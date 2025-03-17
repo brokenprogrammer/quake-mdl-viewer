@@ -25,6 +25,14 @@ g_checkbox_font: *simp.Dynamic_Font;
 g_slider_font: *simp.Dynamic_Font;
 g_dropdown_font: *simp.Dynamic_Font;
 
+Vector2_GLfloat :: struct {
+    x, y: GLfloat;
+}
+
+Vector3_GLfloat :: struct {
+    x, y, z: GLfloat;
+}
+
 Vector3_Float32 :: struct {
     x, y, z: float32;
 };
@@ -47,9 +55,6 @@ gl_vertex_count: GLsizei;
 gl_frame_count: GLsizei;
 
 anim_name: [MAX_FRAME_COUNT][16]u8;
-
-tex: [1024*1024]u8;
-texrgb: [1024*1024*3]u8;
 
 mdl_file_names: [..]string;
 
