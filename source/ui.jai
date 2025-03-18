@@ -4,7 +4,7 @@ g_params : struct {
 	frame_names: []string;
 	frame_index: s32;
 	animation_time := 0.0;
-	animation_speed_in_fps := 30.0;
+	animation_speed_in_fps := 10.0;
 };
 
 update_ui :: (delta_time: float) {
@@ -77,7 +77,7 @@ update_ui :: (delta_time: float) {
 	r.y -= pad;
 	// Animation time slider
 	{
-		sample_count := gl_frame_count / 1.0;
+		sample_count := g_model.frames.count / 1.0;
 		// if animation_index > 0
 		// {
 		// 	anim := table_find_pointer (*g_loaded_animations, animation_names[animation_index]);

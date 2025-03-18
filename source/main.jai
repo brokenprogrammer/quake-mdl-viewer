@@ -25,6 +25,8 @@ g_checkbox_font: *simp.Dynamic_Font;
 g_slider_font: *simp.Dynamic_Font;
 g_dropdown_font: *simp.Dynamic_Font;
 
+g_model: MDLModel;
+
 Vector2_GLfloat :: struct {
     x, y: GLfloat;
 }
@@ -50,13 +52,13 @@ Vector3_U8 :: struct {
 }
 
 gl_texture: GLuint;
-gl_vertices: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Vertices
-gl_normals: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Normals
-gl_texcoords: [2*MAX_VERTEX_COUNT][2]GLfloat;                   // Tex coords
-gl_triangles: [MAX_TRIANGLE_COUNT][3]GLuint;                    // Index buffer
-gl_triangle_count: GLsizei;
-gl_vertex_count: GLsizei;
-gl_frame_count: GLsizei;
+// gl_vertices: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Vertices
+// gl_normals: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Normals
+// gl_texcoords: [2*MAX_VERTEX_COUNT][2]GLfloat;                   // Tex coords
+// gl_triangles: [MAX_TRIANGLE_COUNT][3]GLuint;                    // Index buffer
+// gl_triangle_count: GLsizei;
+// gl_vertex_count: GLsizei;
+// gl_frame_count: GLsizei;
 
 anim_name: [MAX_FRAME_COUNT][16]u8;
 
@@ -200,14 +202,14 @@ main :: () {
 
     for pak_files {
         if contains(to_string(it.name.data), mdl_file_names[mdl_file_index]) {
-            load_mdl(file, it, color_palette);
+            g_model = load_mdl(file, it, color_palette);
             break;
         }    
     }
     g_params.mdl_names = mdl_file_names;
     g_params.mdl_index = xx mdl_file_index;
 
-    init_buffers(gl_texcoords, gl_triangles);
+    init_buffers(g_model);
 
     g_camera.position = xyz (1, 1.3, 2.3);
 	g_camera.euler_angles.x = -20 * PI / 180.0;
@@ -234,24 +236,25 @@ main :: () {
 
         update_frame(delta_time, file, pak_files, color_palette);
 
-        if is_key_pressed(xx #char "F") {
-            mdl_file_index = (mdl_file_index + 1) % mdl_file_names.count;
-            for pak_files {
-                if contains(to_string(it.name.data), mdl_file_names[mdl_file_index]) {
-                    load_mdl(file, it, color_palette);
-                    update_buffers(gl_texcoords, gl_triangles);
-                    break;
-                }    
-            }
-        }
+		// TODO(Oskar): Remove when I feel confident.
+        // if is_key_pressed(xx #char "F") {
+        //     mdl_file_index = (mdl_file_index + 1) % mdl_file_names.count;
+        //     for pak_files {
+        //         if contains(to_string(it.name.data), mdl_file_names[mdl_file_index]) {
+        //             g_model = load_mdl(file, it, color_palette);
+        //             update_buffers(gl_texcoords, gl_triangles);
+        //             break;
+        //         }    
+        //     }
+        // }
 
         time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
         angle: float = fmod_cycling(-180 + time * 360 / 5, 360);
 
         anim: float = g_params.animation_time;//time * ANIMATION_FRAMES_PER_SECOND;
         anim_lerp: float = fmod_cycling(anim, 1.0);
-        frame: int = cast(int)anim % gl_frame_count;
-        frame_next: int = (frame + 1) % gl_frame_count;
+        frame: int = cast(int)anim % g_model.frames.count;
+        frame_next: int = (frame + 1) % g_model.frames.count;
 
         // curr_anim: [16]u8; 
         // memcpy(curr_anim.data, *anim_name[frame], 16);
@@ -281,7 +284,7 @@ main :: () {
 			draw_line (xyz (-25, 0, xx i), xyz (25, 0, xx i), .{0.4, 0.4, 0.4, 1});
         }
 
-        render(gl_vertices, gl_vertex_count, frame, frame_next, anim_lerp, aspect, gl_texture, angle);
+        render(g_model, frame, frame_next, anim_lerp, aspect, gl_texture, angle);
         
         update_ui (delta_time);
 
@@ -313,13 +316,13 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
         // Did update mesh index.
         for pak_files {
             if contains(to_string(it.name.data), g_params.mdl_names[g_params.mdl_index]) {
-                load_mdl(file, it, color_palette);
-                update_buffers(gl_texcoords, gl_triangles);
+                g_model = load_mdl(file, it, color_palette);
+                update_buffers(g_model);
                 break;
             }    
         }
     }
 
     g_params.animation_time += delta_time * g_params.animation_speed_in_fps;
-    g_params.animation_time = fmod_cycling(g_params.animation_time, xx gl_frame_count);
+    g_params.animation_time = fmod_cycling(g_params.animation_time, xx g_model.frames.count);
 }
