@@ -33,6 +33,10 @@ Vector3_GLfloat :: struct {
     x, y, z: GLfloat;
 }
 
+Vector3_GLuint :: struct {
+	x, y, z: GLuint;
+}
+
 Vector3_Float32 :: struct {
     x, y, z: float32;
 };

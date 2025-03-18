@@ -60,6 +60,12 @@ MDLFrame :: struct {
     name: [16]u8;
 };
 
+// TODO(Oskar): Use this.
+MDLModelAnimation :: struct {
+    name: [16]u8;
+    frames: [..]MDLModelFrame;
+};
+
 MDLModelFrame :: struct {
     vertices: []Vector3_GLfloat;
     normals: []Vector3_GLfloat;
@@ -71,8 +77,8 @@ MDLModel :: struct {
     texture_data: []u8;
 
     texture_coordinates: []Vector2_GLfloat;
-    indices: []Vector3_GLfloat;             // Known as triangles before, vertex indices that forms triangles.
-    frames: []MDLModelFrame;
+    indices: []Vector3_GLuint;              // Known as triangles before, vertex indices that forms triangles.
+    frames: [..]MDLModelFrame;              // TODO(Oskar): Should this be resizeable? If it should we need to array_free upon cleanup.
 };
 
 load_mdl_colorpalette :: (file: File, pak_files: []PakFile) -> []Vector3_U8 {
@@ -151,36 +157,56 @@ load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, mdl_model : *MDLMod
     }
 }
 
-load_mdl_texcoords :: (file: File, mdl_header: MDLHeader) {
+load_mdl_texcoords :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
     mdl_texcoord: [MAX_VERTEX_COUNT]MDLTexcoord;
     file_read(file, *mdl_texcoord, size_of(MDLTexcoord)*mdl_header.vertex_count);
 
+    // TODO(Oskar): Cleanup on model unload.
+    mdl_model.texture_coordinates = NewArray(mdl_header.vertex_count * 2, Vector2_GLfloat);
     for 0..mdl_header.vertex_count - 1 {
         s := mdl_texcoord[it].s + 0.5;
         t := mdl_texcoord[it].t + 0.5;
         
         gl_texcoords[it][0] = s / mdl_header.tex_width;
         gl_texcoords[it][1] = t / mdl_header.tex_height;
+
+        mdl_model.texture_coordinates[it].x = s / mdl_header.tex_width;
+        mdl_model.texture_coordinates[it].y = t / mdl_header.tex_height;
+
         a := ifx mdl_texcoord[it].seam 0.5 else 0.0;
         gl_texcoords[it + mdl_header.vertex_count][0] = (s + mdl_header.tex_width * (a)) / mdl_header.tex_width;
         gl_texcoords[it + mdl_header.vertex_count][1] = t / mdl_header.tex_height;
+
+        mdl_model.texture_coordinates[it + mdl_header.vertex_count].x = (s + mdl_header.tex_width * (a)) / mdl_header.tex_width;;
+        mdl_model.texture_coordinates[it + mdl_header.vertex_count].y = t / mdl_header.tex_height;        
     }
 }
 
-load_mdl_triangles :: (file: File, mdl_header: MDLHeader) {
+load_mdl_triangles :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
     mdl_triangles: [MAX_TRIANGLE_COUNT]MDLTriangle;
     file_read(file, *mdl_triangles, size_of(MDLTriangle)*mdl_header.triangle_count);
     
+    // TODO(Oskar): Cleanup on model unload.
+    mdl_model.indices = NewArray(mdl_header.triangle_count, Vector3_GLuint);
     for 0..mdl_header.triangle_count - 1 {
         gl_triangles[it][0] = mdl_triangles[it].vertex.x + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
         gl_triangles[it][1] = mdl_triangles[it].vertex.y + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
         gl_triangles[it][2] = mdl_triangles[it].vertex.z + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
+
+        mdl_model.indices[it].x = mdl_triangles[it].vertex.x + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
+        mdl_model.indices[it].y = mdl_triangles[it].vertex.y + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
+        mdl_model.indices[it].z = mdl_triangles[it].vertex.z + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
     }
     gl_triangle_count = mdl_header.triangle_count;
 }
 
-load_mdl_vertices :: (file: File, mdl_header: MDLHeader) {
+load_mdl_vertices :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
     for frame: 0..mdl_header.frame_count - 1 {
+        mdl_model_frame : MDLModelFrame;
+        // TODO(Oskar): Cleanup on model unload.
+        mdl_model_frame.vertices = NewArray(mdl_header.vertex_count * 2, Vector3_GLfloat);
+        mdl_model_frame.normals = NewArray(mdl_header.vertex_count * 2, Vector3_GLfloat);
+        
         group: u32;
         file_read(file, *group, size_of(u32));
 
@@ -198,22 +224,40 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader) {
             gl_vertices[frame][k][1] = mdl_header.scale.y * vertices[k].pos.y + mdl_header.translate.y;
             gl_vertices[frame][k][2] = mdl_header.scale.z * vertices[k].pos.z + mdl_header.translate.z;
 
+            mdl_model_frame.vertices[k].x = mdl_header.scale.x * vertices[k].pos.x + mdl_header.translate.x;
+            mdl_model_frame.vertices[k].y = mdl_header.scale.y * vertices[k].pos.y + mdl_header.translate.y;
+            mdl_model_frame.vertices[k].z = mdl_header.scale.z * vertices[k].pos.z + mdl_header.translate.z;
+
             // Back
             gl_vertices[frame][k + mdl_header.vertex_count][0] = gl_vertices[frame][k][0];
             gl_vertices[frame][k + mdl_header.vertex_count][1] = gl_vertices[frame][k][1];
             gl_vertices[frame][k + mdl_header.vertex_count][2] = gl_vertices[frame][k][2];
 
+            mdl_model_frame.vertices[k + mdl_header.vertex_count].x = mdl_model_frame.vertices[k].x; 
+            mdl_model_frame.vertices[k + mdl_header.vertex_count].y = mdl_model_frame.vertices[k].y; 
+            mdl_model_frame.vertices[k + mdl_header.vertex_count].z = mdl_model_frame.vertices[k].z; 
 
             // Front, added wraparound because some models seems to have indexes out of boudns..
             gl_normals[frame][k][0] = anorms_table[vertices[k].normal_index % 162].x;
             gl_normals[frame][k][1] = anorms_table[vertices[k].normal_index % 162].y;
             gl_normals[frame][k][2] = anorms_table[vertices[k].normal_index % 162].z;
 
+            mdl_model_frame.normals[k].x = anorms_table[vertices[k].normal_index % 162].x;
+            mdl_model_frame.normals[k].y = anorms_table[vertices[k].normal_index % 162].y;
+            mdl_model_frame.normals[k].z = anorms_table[vertices[k].normal_index % 162].z;
+
             // Back
             gl_normals[frame][k + mdl_header.vertex_count][0] = gl_normals[frame][k][0];
             gl_normals[frame][k + mdl_header.vertex_count][1] = gl_normals[frame][k][1];
             gl_normals[frame][k + mdl_header.vertex_count][2] = gl_normals[frame][k][2];
+
+            mdl_model_frame.normals[k + mdl_header.vertex_count].x = mdl_model_frame.normals[k].x;
+            mdl_model_frame.normals[k + mdl_header.vertex_count].y = mdl_model_frame.normals[k].y;
+            mdl_model_frame.normals[k + mdl_header.vertex_count].z = mdl_model_frame.normals[k].z;
         }
+
+        // TODO(Oskar): Cleanup on model unload?
+        array_add(*mdl_model.frames, mdl_model_frame);
     }
 }
 
@@ -232,9 +276,9 @@ load_mdl :: (file: File, pak_file: PakFile, color_palette: []Vector3_U8) -> MDLM
     gl_frame_count = mdl_header.frame_count;
 
     load_mdl_texture_data(file, mdl_header, *mdl_model, color_palette);
-    load_mdl_texcoords(file, mdl_header);
-    load_mdl_triangles(file, mdl_header);
-    load_mdl_vertices(file, mdl_header);
+    load_mdl_texcoords(file, mdl_header, *mdl_model);
+    load_mdl_triangles(file, mdl_header, *mdl_model);
+    load_mdl_vertices(file, mdl_header, *mdl_model);
 
     return mdl_model;
 }
