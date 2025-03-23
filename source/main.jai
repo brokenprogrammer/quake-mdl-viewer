@@ -51,7 +51,7 @@ Vector3_U8 :: struct {
     x, y, z: u8;
 }
 
-gl_texture: GLuint;
+// gl_texture: GLuint;
 // gl_vertices: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Vertices
 // gl_normals: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Normals
 // gl_texcoords: [2*MAX_VERTEX_COUNT][2]GLfloat;                   // Tex coords
@@ -179,14 +179,14 @@ main :: () {
     getrect.ui_init ();
 	init_fonts ();
 
-    glGenTextures(1, *gl_texture);
-    glBindTexture(GL_TEXTURE_2D, gl_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    // glGenTextures(1, *gl_texture);
+    // glBindTexture(GL_TEXTURE_2D, gl_texture);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    // glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
     file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
     if !file_success {
@@ -284,7 +284,7 @@ main :: () {
 			draw_line (xyz (-25, 0, xx i), xyz (25, 0, xx i), .{0.4, 0.4, 0.4, 1});
         }
 
-        render(g_model, frame, frame_next, anim_lerp, aspect, gl_texture, angle);
+        render(g_model, frame, frame_next, anim_lerp, aspect, angle);
         
         update_ui (delta_time);
 

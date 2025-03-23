@@ -8,6 +8,8 @@ g_VBO_Texcoords: GLuint;
 g_VBO_Normals: GLuint;
 g_EBO: GLuint;
 
+g_texture: GLuint;
+
 g_line_vao, g_line_vbo: GLuint;
 g_cube_vao, g_cube_vbo: GLuint;
 
@@ -253,6 +255,17 @@ init_buffers :: (mdl_model: MDLModel) {
 
     glBindVertexArray (0);
 	glBindBuffer (GL_ARRAY_BUFFER, 0);
+
+    // Texture
+    glGenTextures(1, *g_texture);
+    glBindTexture(GL_TEXTURE_2D, g_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
 }
 
 update_buffers :: (mdl_model: MDLModel) {
@@ -269,9 +282,14 @@ update_buffers :: (mdl_model: MDLModel) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(Vector3_GLuint) * mdl_model.indices.count, mdl_model.indices.data, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glBindTexture(GL_TEXTURE_2D, g_texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
 }
 
-render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, aspect: float, texture: GLuint, angle: float) {
+render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, aspect: float, angle: float) {
     glUseProgram(g_shader);
 
     // TODO(Oskar): Pass vector3 instead of this annoying indexing.
@@ -313,7 +331,7 @@ render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, a
     glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindTexture(GL_TEXTURE_2D, g_texture);
     glUniform1i(glGetUniformLocation(g_shader, "texture1"), 0);
 
     glBindVertexArray(g_VAO);

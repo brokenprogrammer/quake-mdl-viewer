@@ -150,11 +150,13 @@ load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, mdl_model : *MDLMod
             mdl_model.texture_data[texture_number_of_channels * it + 2] = color_palette[palette_index].z;
         }
 
+        mdl_model.texture_width = mdl_header.tex_width;
+        mdl_model.texture_height = mdl_header.tex_height;
         // TODO(Oskar): eventually move this to renderer.
-        glBindTexture(GL_TEXTURE_2D, gl_texture);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_header.tex_width, mdl_header.tex_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
+        // glBindTexture(GL_TEXTURE_2D, gl_texture);
+        // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        // glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_header.tex_width, mdl_header.tex_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
     }
 }
 
