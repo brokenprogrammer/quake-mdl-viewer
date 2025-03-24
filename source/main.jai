@@ -208,6 +208,10 @@ main :: () {
     }
     g_params.mdl_names = mdl_file_names;
     g_params.mdl_index = xx mdl_file_index;
+	g_params.mdl_index_last_frame = g_params.mdl_index;
+
+	g_params.frame_names = mdl_get_animation_names(g_model);
+	g_params.frame_index = 0;
 
     init_buffers(g_model);
 
@@ -253,8 +257,8 @@ main :: () {
 
         anim: float = g_params.animation_time;//time * ANIMATION_FRAMES_PER_SECOND;
         anim_lerp: float = fmod_cycling(anim, 1.0);
-        frame: int = cast(int)anim % g_model.frames.count;
-        frame_next: int = (frame + 1) % g_model.frames.count;
+        frame: int = cast(int)anim % g_model.animations[g_params.frame_index].frames.count;
+        frame_next: int = (frame + 1) % g_model.animations[g_params.frame_index].frames.count;
 
         // curr_anim: [16]u8; 
         // memcpy(curr_anim.data, *anim_name[frame], 16);
@@ -284,7 +288,7 @@ main :: () {
 			draw_line (xyz (-25, 0, xx i), xyz (25, 0, xx i), .{0.4, 0.4, 0.4, 1});
         }
 
-        render(g_model, frame, frame_next, anim_lerp, aspect, angle);
+        render(g_model, frame, frame_next, anim_lerp, aspect, angle, g_params.frame_index);
         
         update_ui (delta_time);
 
@@ -310,13 +314,20 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
 
 	update_flying_camera (*g_camera, delta_time);
 
-    if g_params.mdl_index == 0 {
+    if g_params.mdl_index == g_params.mdl_index_last_frame {
         // Did not update mesh index
     } else {
         // Did update mesh index.
         for pak_files {
             if contains(to_string(it.name.data), g_params.mdl_names[g_params.mdl_index]) {
                 g_model = load_mdl(file, it, color_palette);
+
+				array_free(g_params.frame_names);
+				g_params.frame_names = mdl_get_animation_names(g_model);
+				g_params.frame_index = 0;
+
+				g_params.mdl_index_last_frame = g_params.mdl_index;
+
                 update_buffers(g_model);
                 break;
             }    
@@ -324,5 +335,5 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
     }
 
     g_params.animation_time += delta_time * g_params.animation_speed_in_fps;
-    g_params.animation_time = fmod_cycling(g_params.animation_time, xx g_model.frames.count);
+    g_params.animation_time = fmod_cycling(g_params.animation_time, xx g_model.animations[g_params.frame_index].frames.count);
 }

@@ -62,7 +62,7 @@ MDLFrame :: struct {
 
 // TODO(Oskar): Use this.
 MDLModelAnimation :: struct {
-    name: [16]u8;
+    name: string;
     frames: [..]MDLModelFrame;
 };
 
@@ -79,8 +79,20 @@ MDLModel :: struct {
     texture_coordinates: []Vector2_GLfloat;
     indices: []Vector3_GLuint;              // Known as triangles before, vertex indices that forms triangles.
     vertex_count: u32;
-    frames: [..]MDLModelFrame;              // TODO(Oskar): Should this be resizeable? If it should we need to array_free upon cleanup.
+    // frames: [..]MDLModelFrame;              // TODO(Oskar): Should this be resizeable? If it should we need to array_free upon cleanup.
+    animations: [..]MDLModelAnimation;
 };
+
+mdl_get_animation_names :: (mdl_model: MDLModel) -> []string {
+    names: [..]string;
+    array_reserve(*names, mdl_model.animations.count);
+
+    for 0..mdl_model.animations.count - 1 {
+        array_add(*names, mdl_model.animations[it].name);
+    }
+
+    return names;
+}
 
 load_mdl_colorpalette :: (file: File, pak_files: []PakFile) -> []Vector3_U8 {
     for pak_files {
@@ -193,6 +205,9 @@ load_mdl_triangles :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) 
 }
 
 load_mdl_vertices :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
+    model_frames : [..]MDLModelFrame;
+    model_names : [..]string; // TODO(Oskar): Can we make this not use memcpy somehow and not have to sort afterwards?
+
     for frame: 0..mdl_header.frame_count - 1 {
         mdl_model_frame : MDLModelFrame;
         // TODO(Oskar): Cleanup on model unload.
@@ -205,7 +220,13 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
         mdl_frame: MDLFrame;
         file_read(file, *mdl_frame, size_of(MDLFrame));
 
-        memcpy(*anim_name[frame], mdl_frame.name.data, mdl_frame.name.count);
+
+        model_frame_name := to_string(mdl_frame.name.data);
+        replace_chars(model_frame_name, "0123456789", 0);
+
+        // model_frame_name.data = mdl_frame.name.data;
+        // model_frame_name.count = mdl_frame.name.count;
+        // memcpy(*model_names[frame], mdl_frame.name.data, mdl_frame.name.count);
 
         vertices: [MAX_VERTEX_COUNT]MDLVertex;
         file_read(file, *vertices, size_of(MDLVertex)*mdl_header.vertex_count);
@@ -233,7 +254,35 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
         }
 
         // TODO(Oskar): Cleanup on model unload?
-        array_add(*mdl_model.frames, mdl_model_frame);
+        array_add(*model_frames, mdl_model_frame);
+        array_add(*model_names, sprint("%", model_frame_name));
+        // array_add(*mdl_model.frames, mdl_model_frame); // TODO(Oskar): This is to be removed.
+    }
+
+    for 0..model_frames.count - 1 {
+        name := model_names[it];
+
+        animation_does_exist := false;
+        animation_index := -1;
+
+        for 0..mdl_model.animations.count - 1 {
+            if equal(mdl_model.animations[it].name, name) {
+                animation_does_exist = true;
+                animation_index = it;
+                break;
+            }
+        }
+
+        if animation_does_exist {
+            array_add(*mdl_model.animations[animation_index].frames, model_frames[it]);
+        }
+        else
+        {
+            animation: MDLModelAnimation;
+            animation.name = name;
+            array_add(*animation.frames, model_frames[it]);
+            array_add(*mdl_model.animations, animation);
+        }
     }
 }
 

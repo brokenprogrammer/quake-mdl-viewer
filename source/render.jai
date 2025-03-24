@@ -289,7 +289,7 @@ update_buffers :: (mdl_model: MDLModel) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
 }
 
-render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, aspect: float, angle: float) {
+render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, aspect: float, angle: float, anim_index: int) {
     glUseProgram(g_shader);
 
     // TODO(Oskar): Pass vector3 instead of this annoying indexing.
@@ -297,13 +297,13 @@ render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, a
     vertices: [2 * MAX_VERTEX_COUNT * 3]GLfloat;
     normals: [2 * MAX_VERTEX_COUNT * 3]GLfloat;
     for 0..(mdl_model.vertex_count) - 1 {
-        vertices[3 * it + 0] = mdl_model.frames[frame].vertices[it].x * (1.0 - anim_lerp) + mdl_model.frames[frame_next].vertices[it].x * anim_lerp;
-        vertices[3 * it + 1] = mdl_model.frames[frame].vertices[it].y * (1.0 - anim_lerp) + mdl_model.frames[frame_next].vertices[it].y * anim_lerp;
-        vertices[3 * it + 2] = mdl_model.frames[frame].vertices[it].z * (1.0 - anim_lerp) + mdl_model.frames[frame_next].vertices[it].z * anim_lerp;
+        vertices[3 * it + 0] = mdl_model.animations[anim_index].frames[frame].vertices[it].x * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].vertices[it].x * anim_lerp;
+        vertices[3 * it + 1] = mdl_model.animations[anim_index].frames[frame].vertices[it].y * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].vertices[it].y * anim_lerp;
+        vertices[3 * it + 2] = mdl_model.animations[anim_index].frames[frame].vertices[it].z * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].vertices[it].z * anim_lerp;
 
-        normals[3 * it + 0] = mdl_model.frames[frame].normals[it].x * (1.0 - anim_lerp) + mdl_model.frames[frame_next].normals[it].x * anim_lerp;
-        normals[3 * it + 1] = mdl_model.frames[frame].normals[it].y * (1.0 - anim_lerp) + mdl_model.frames[frame_next].normals[it].y * anim_lerp;
-        normals[3 * it + 2] = mdl_model.frames[frame].normals[it].z * (1.0 - anim_lerp) + mdl_model.frames[frame_next].normals[it].z * anim_lerp;
+        normals[3 * it + 0] = mdl_model.animations[anim_index].frames[frame].normals[it].x * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].normals[it].x * anim_lerp;
+        normals[3 * it + 1] = mdl_model.animations[anim_index].frames[frame].normals[it].y * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].normals[it].y * anim_lerp;
+        normals[3 * it + 2] = mdl_model.animations[anim_index].frames[frame].normals[it].z * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].normals[it].z * anim_lerp;
     }
     
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Pos);
