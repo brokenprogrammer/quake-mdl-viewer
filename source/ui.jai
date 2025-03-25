@@ -1,3 +1,15 @@
+Interpolation_Mode :: enum s32 {
+	NEAREST :: 0;
+	LINEAR  :: 1;
+	LINEAR_SLERP :: 2;
+}
+
+Rendering_Mode :: enum s32 {
+	COLOR :: 0;
+	TEXTURE :: 1;
+	NORMAL :: 2;
+}
+
 g_params : struct {
     mdl_names: []string;
     mdl_index: s32;
@@ -6,6 +18,11 @@ g_params : struct {
 	frame_index: s32;
 	animation_time := 0.0;
 	animation_speed_in_fps := 10.0;
+	rotate := true;
+	show_animation := true;
+	show_normals := true;
+	interpolation_mode := Interpolation_Mode.LINEAR;
+	rendering_mode := Rendering_Mode.TEXTURE;
 };
 
 update_ui :: (delta_time: float) {
@@ -33,7 +50,7 @@ update_ui :: (delta_time: float) {
 
     k := g_current_window_height / 45.0;
 	pad := cast (float) g_font.character_height * 1.6;
-	dropdown_offset := w * 0.1;
+	dropdown_offset := w * 0.15;
 	dropdown_width  := w * 0.2;
 	r := getrect.get_rect (
 		k, h - k * 2,
@@ -87,6 +104,57 @@ update_ui :: (delta_time: float) {
 		text := tprint ("Animation Time: %.00", sample_count);
 		r.w = w * 0.1 + xx simp.prepare_text (g_slider_font, text);
 		getrect.slider (r, *animation_time, 0.0, xx sample_count, 1.0, *slider_theme, "Animation Time: ", "");
+	}
+		r.y -= pad;
+	// Perform Rotation checkbox
+	{
+		r.w = r.h + xx simp.prepare_text (g_checkbox_font, "Rotate");
+		pressed := getrect.base_checkbox (r, "Rotate", rotate, *checkbox_theme);
+		rotate ^= pressed;
+	}
+	r.y -= pad;
+	// Show Normals checkbox
+	{
+		r.w = r.h + xx simp.prepare_text (g_checkbox_font, "Show Normals");
+		pressed := getrect.base_checkbox (r, "Show Normals", show_normals, *checkbox_theme);
+		show_normals ^= pressed;
+	}
+	r.y -= pad;
+	// Show Animations checkbox
+	{
+		r.w = r.h + xx simp.prepare_text (g_checkbox_font, "Show Animation");
+		pressed := getrect.base_checkbox (r, "Show Animation", show_animation, *checkbox_theme);
+		show_animation ^= pressed;
+	}
+	r.y -= pad;
+	// Interpolation mode
+	{
+		r.w = xx simp.prepare_text (g_font, "Interpolation Mode: ");
+		getrect.label (r, "Interpolation Mode: ", *label_theme);
+		r.x += dropdown_offset;
+		defer r.x -= dropdown_offset;
+		r.w = dropdown_width;
+		getrect.dropdown (
+			r,
+			string.[ "Nearest", "Linear", "Linear, slerp" ],
+			cast (*s32) *interpolation_mode,
+			*dropdown_theme
+		);
+	}
+	r.y -= pad;
+	// Rendering mode
+	{
+		r.w = xx simp.prepare_text (g_font, "Rendering Mode: ");
+		getrect.label (r, "Rendering Mode: ", *label_theme);
+		r.x += dropdown_offset;
+		defer r.x -= dropdown_offset;
+		r.w = dropdown_width;
+		getrect.dropdown (
+			r,
+			string.[ "Color", "Texture", "Normal" ],
+			cast (*s32) *rendering_mode,
+			*dropdown_theme
+		);
 	}
 
     getrect.draw_popups ();

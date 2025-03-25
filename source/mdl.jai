@@ -222,7 +222,7 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
 
 
         model_frame_name := to_string(mdl_frame.name.data);
-        replace_chars(model_frame_name, "0123456789", 0);
+        model_frame_name = trim_right(model_frame_name, "0123456789");
 
         // model_frame_name.data = mdl_frame.name.data;
         // model_frame_name.count = mdl_frame.name.count;

@@ -3,9 +3,11 @@ g_line_shader: GLuint;
 g_cube_shader: GLuint;
 
 g_VAO: GLuint;
-g_VBO_Pos: GLuint;
+g_VBO_CurrentFramePos: GLuint;
+g_VBO_NextFramePos: GLuint;
+g_VBO_CurrentFrameNormals: GLuint;
+g_VBO_NextFrameNormals: GLuint;
 g_VBO_Texcoords: GLuint;
-g_VBO_Normals: GLuint;
 g_EBO: GLuint;
 
 g_texture: GLuint;
@@ -196,31 +198,43 @@ init_buffers :: (mdl_model: MDLModel) {
 		return;
 
     glGenVertexArrays(1, *g_VAO);
-    glGenBuffers(1, *g_VBO_Pos);
+    glGenBuffers(1, *g_VBO_CurrentFramePos);
+    glGenBuffers(1, *g_VBO_NextFramePos);
+    glGenBuffers(1, *g_VBO_CurrentFrameNormals);
+    glGenBuffers(1, *g_VBO_NextFrameNormals);
     glGenBuffers(1, *g_VBO_Texcoords);
-    glGenBuffers(1, *g_VBO_Normals);
     glGenBuffers(1, *g_EBO);
 
     glBindVertexArray(g_VAO);
 
     // Positions VBO (will update per frame)
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Pos);
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFramePos);
     glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * size_of(GLfloat), cast(*void)0);
     glEnableVertexAttribArray(0);
 
-    // Texture Coordinates VBO (static)
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Texcoords);
-    // glBufferData(GL_ARRAY_BUFFER, size_of(GLfloat) * ((2 * MAX_VERTEX_COUNT) * 2), gl_texcoords.data, GL_STATIC_DRAW);
-    glBufferData(GL_ARRAY_BUFFER, mdl_model.texture_coordinates.count * size_of(Vector2_GLfloat), mdl_model.texture_coordinates.data, GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * size_of(GLfloat), cast(*void)0);
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFramePos);
+    glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * size_of(GLfloat), cast(*void)0);
     glEnableVertexAttribArray(1);
 
     // Normals VBO (will update per frame) ?
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Normals);
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFrameNormals);
     glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 3 * size_of(GLfloat), cast(*void)0);
     glEnableVertexAttribArray(2);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFrameNormals);
+    glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * size_of(GLfloat), cast(*void)0);
+    glEnableVertexAttribArray(3);
+
+    // Texture Coordinates VBO (static)
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Texcoords);
+    glBufferData(GL_ARRAY_BUFFER, mdl_model.texture_coordinates.count * size_of(Vector2_GLfloat), mdl_model.texture_coordinates.data, GL_STATIC_DRAW);
+    glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, 2 * size_of(GLfloat), cast(*void)0);
+    glEnableVertexAttribArray(4);
+
 
     // Elements (Triangles) VBO (static)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_EBO);
@@ -269,14 +283,20 @@ init_buffers :: (mdl_model: MDLModel) {
 }
 
 update_buffers :: (mdl_model: MDLModel) {
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Pos);
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFramePos);
     glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
 
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFramePos);
+    glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFrameNormals);
+    glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFrameNormals);
+    glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
+    
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Texcoords);
     glBufferData(GL_ARRAY_BUFFER, mdl_model.texture_coordinates.count * size_of(Vector2_GLfloat), mdl_model.texture_coordinates.data, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Normals);
-    glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(Vector3_GLuint) * mdl_model.indices.count, mdl_model.indices.data, GL_STATIC_DRAW);
@@ -294,23 +314,29 @@ render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, a
 
     // TODO(Oskar): Pass vector3 instead of this annoying indexing.
     // TODO(Oskar): Pass this and next frame to shader and let it interpolate.
-    vertices: [2 * MAX_VERTEX_COUNT * 3]GLfloat;
-    normals: [2 * MAX_VERTEX_COUNT * 3]GLfloat;
-    for 0..(mdl_model.vertex_count) - 1 {
-        vertices[3 * it + 0] = mdl_model.animations[anim_index].frames[frame].vertices[it].x * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].vertices[it].x * anim_lerp;
-        vertices[3 * it + 1] = mdl_model.animations[anim_index].frames[frame].vertices[it].y * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].vertices[it].y * anim_lerp;
-        vertices[3 * it + 2] = mdl_model.animations[anim_index].frames[frame].vertices[it].z * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].vertices[it].z * anim_lerp;
+    // vertices: [2 * MAX_VERTEX_COUNT * 3]GLfloat;
+    // normals: [2 * MAX_VERTEX_COUNT * 3]GLfloat;
+    // for 0..(mdl_model.vertex_count) - 1 {
+    //     vertices[3 * it + 0] = mdl_model.animations[anim_index].frames[frame].vertices[it].x * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].vertices[it].x * anim_lerp;
+    //     vertices[3 * it + 1] = mdl_model.animations[anim_index].frames[frame].vertices[it].y * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].vertices[it].y * anim_lerp;
+    //     vertices[3 * it + 2] = mdl_model.animations[anim_index].frames[frame].vertices[it].z * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].vertices[it].z * anim_lerp;
 
-        normals[3 * it + 0] = mdl_model.animations[anim_index].frames[frame].normals[it].x * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].normals[it].x * anim_lerp;
-        normals[3 * it + 1] = mdl_model.animations[anim_index].frames[frame].normals[it].y * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].normals[it].y * anim_lerp;
-        normals[3 * it + 2] = mdl_model.animations[anim_index].frames[frame].normals[it].z * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].normals[it].z * anim_lerp;
-    }
+    //     normals[3 * it + 0] = mdl_model.animations[anim_index].frames[frame].normals[it].x * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].normals[it].x * anim_lerp;
+    //     normals[3 * it + 1] = mdl_model.animations[anim_index].frames[frame].normals[it].y * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].normals[it].y * anim_lerp;
+    //     normals[3 * it + 2] = mdl_model.animations[anim_index].frames[frame].normals[it].z * (1.0 - anim_lerp) + mdl_model.animations[anim_index].frames[frame_next].normals[it].z * anim_lerp;
+    // }
     
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Pos);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(GLfloat) * (mdl_model.vertex_count * 3), *vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFramePos);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame].vertices.data);
 
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Normals);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(GLfloat) * (mdl_model.vertex_count * 3), *normals);
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFramePos);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame_next].vertices.data);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFrameNormals);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame].normals.data);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFrameNormals);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame_next].normals.data);
 
     r1: Quaternion;
     set_from_axis_and_angle(*r1, 0, 1, 0, angle * PI / 180.0);
@@ -323,6 +349,7 @@ render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, a
 
     glUniformMatrix4fv(glGetUniformLocation(g_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(g_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
+    glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
 
     lightPos := float32.[5.0, 5.0, 0.0];
     lightColor := float32.[1.0, 1.0, 1.0];
@@ -346,18 +373,24 @@ SHADER_PREFIX :: #string END
 END
 
 MDL_VERTEX_SHADER :: #string GLSL
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec2 aTexCoord;
-layout (location = 2) in vec3 aNormal;
+layout (location = 0) in vec3 aCurrentFramePos;
+layout (location = 1) in vec3 aNextFramePos;
+layout (location = 2) in vec3 aCurrentFrameNormal;
+layout (location = 3) in vec3 aNextFrameNormal;
+layout (location = 4) in vec2 aTexCoord;
 
 uniform mat4 model;
 uniform mat4 view_projection;
+uniform float interpolation;
 
 out vec2 TexCoord;
 out vec3 Normal;
 out vec3 FragPos;
 
 void main() {
+    vec3 aPos = (aCurrentFramePos * (1.0 - interpolation)) + (aNextFramePos * interpolation);
+    vec3 aNormal = (aCurrentFrameNormal * (1.0 - interpolation)) + (aNextFrameNormal * interpolation);
+
     TexCoord = aTexCoord;
     Normal = mat3(transpose(inverse(model))) * aNormal;
     FragPos = vec3(model * vec4(aPos, 1.0));
