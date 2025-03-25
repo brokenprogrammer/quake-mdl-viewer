@@ -309,7 +309,7 @@ update_buffers :: (mdl_model: MDLModel) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
 }
 
-render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, aspect: float, angle: float, anim_index: int) {
+render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, aspect: float, angle: float, anim_index: int, shading_mode: s32) {
     glUseProgram(g_shader);
 
     // TODO(Oskar): Pass vector3 instead of this annoying indexing.
@@ -350,6 +350,7 @@ render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, a
     glUniformMatrix4fv(glGetUniformLocation(g_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(g_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
     glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
+    glUniform1i(glGetUniformLocation(g_shader, "shading_mode"), shading_mode);
 
     lightPos := float32.[5.0, 5.0, 0.0];
     lightColor := float32.[1.0, 1.0, 1.0];
@@ -399,6 +400,10 @@ void main() {
 GLSL
 
 MDL_FRAGMENT_SHADER :: #string GLSL
+#define SHADING_SOLID 0
+#define SHADING_TEXTURE 1
+#define SHADING_NORMAL 2
+
 in vec2 TexCoord;
 in vec3 Normal;
 in vec3 FragPos;
@@ -411,7 +416,21 @@ uniform vec3 lightPos;
 uniform vec3 viewPos; 
 uniform vec3 lightColor;
 
+uniform int shading_mode;
+
 void main() {
+    vec4 objectColor = vec4(1.0);//texture(texture1, TexCoord);
+
+    if (shading_mode == SHADING_TEXTURE) {
+        objectColor = texture(texture1, TexCoord);
+    } else if (shading_mode == SHADING_SOLID) {
+        objectColor = vec4(0.5, 0.5, 0.5, 1.0);
+    } else if (shading_mode == SHADING_NORMAL) {
+        objectColor = vec4(Normal.xyz * 0.5 + 0.5, 1.0);
+    } else {
+        objectColor = texture(texture1, TexCoord);
+    }
+
     // ambient
     float ambientStrength = 0.1;
     vec3 ambient = ambientStrength * lightColor;
@@ -422,7 +441,6 @@ void main() {
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
 
-    vec4 objectColor = texture(texture1, TexCoord);
     vec4 result = vec4(ambient + diffuse, 1.0) * objectColor;
     FragColor = result;
 }

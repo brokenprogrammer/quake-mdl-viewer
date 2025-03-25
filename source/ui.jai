@@ -4,7 +4,7 @@ Interpolation_Mode :: enum s32 {
 	LINEAR_SLERP :: 2;
 }
 
-Rendering_Mode :: enum s32 {
+Shading_Mode :: enum s32 {
 	COLOR :: 0;
 	TEXTURE :: 1;
 	NORMAL :: 2;
@@ -22,7 +22,7 @@ g_params : struct {
 	show_animation := true;
 	show_normals := true;
 	interpolation_mode := Interpolation_Mode.LINEAR;
-	rendering_mode := Rendering_Mode.TEXTURE;
+	shading_mode := Shading_Mode.TEXTURE;
 };
 
 update_ui :: (delta_time: float) {
@@ -144,15 +144,15 @@ update_ui :: (delta_time: float) {
 	r.y -= pad;
 	// Rendering mode
 	{
-		r.w = xx simp.prepare_text (g_font, "Rendering Mode: ");
-		getrect.label (r, "Rendering Mode: ", *label_theme);
+		r.w = xx simp.prepare_text (g_font, "Shading Mode: ");
+		getrect.label (r, "Shading Mode: ", *label_theme);
 		r.x += dropdown_offset;
 		defer r.x -= dropdown_offset;
 		r.w = dropdown_width;
 		getrect.dropdown (
 			r,
 			string.[ "Color", "Texture", "Normal" ],
-			cast (*s32) *rendering_mode,
+			cast (*s32) *shading_mode,
 			*dropdown_theme
 		);
 	}
