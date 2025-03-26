@@ -1,6 +1,7 @@
 g_shader: GLuint;
 g_line_shader: GLuint;
 g_cube_shader: GLuint;
+g_viz_normal_shader: GLuint;
 
 g_VAO: GLuint;
 g_VBO_CurrentFramePos: GLuint;
@@ -145,6 +146,103 @@ create_shader_program :: (vertex_source: string, fragment_source: string) -> GLu
     return result, true;
 }
 
+create_shader_program :: (vertex_source: string, fragment_source: string, geometry_source: string) -> GLuint, bool {
+    check_compile_errors :: (shader: GLuint) -> bool, info_log: string {
+        success: s32;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, *success);
+        if !success {
+            info_len: s32;
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, *info_len);
+            info_data := cast(*u8) alloc(info_len,, temp);
+            glGetShaderInfoLog(shader, xx info_len, xx *info_len, info_data);
+
+            result: string;
+            result.data = info_data;
+            result.count = info_len;
+
+            return false, result;
+        }
+
+        return true, "";
+    }
+
+    check_link_errors :: (program: GLuint) -> bool, info_log: string {
+        success : s32;
+		glGetProgramiv (program, GL_LINK_STATUS, *success);
+		if !success {
+			info_len : s32;
+			glGetProgramiv (program, GL_INFO_LOG_LENGTH, *info_len);
+			info_data := cast (*u8) alloc (info_len,, temp);
+			glGetProgramInfoLog (program, xx info_len, xx *info_len, info_data);
+			
+            result : string;
+			result.data = info_data;
+			result.count = info_len;
+
+			return false, result;
+		}
+
+		return true, "";
+    }
+
+    vs := glCreateShader(GL_VERTEX_SHADER);
+    defer glDeleteShader(vs);
+
+    shaders := *u8.[   SHADER_PREFIX.data, vertex_source.data ];
+    lengths := s32.[xx SHADER_PREFIX.count, cast(s32)vertex_source.count ];
+    glShaderSource(vs, 2, shaders.data, lengths.data);
+    glCompileShader(vs);
+
+    ok, info_log := check_compile_errors(vs);
+    if !ok {
+        log_error("Could not compile vertex shader %", info_log);
+        return 0, false;
+    }
+
+    fs := glCreateShader(GL_FRAGMENT_SHADER);
+    defer glDeleteShader(fs);
+
+    shaders[1] =    fragment_source.data;
+    lengths[1] = xx fragment_source.count;
+    glShaderSource(fs, 2, shaders.data, lengths.data);
+    glCompileShader(fs);
+
+    ok, info_log = check_compile_errors(fs);
+    if !ok {
+        log_error("Could not compile fragment shader %", info_log);
+        return 0, false;
+    }
+
+    gs := glCreateShader(GL_GEOMETRY_SHADER);
+    defer glDeleteShader(gs);
+
+    shaders[1] =    geometry_source.data;
+    lengths[1] = xx geometry_source.count;
+    glShaderSource(gs, 2, shaders.data, lengths.data);
+    glCompileShader(gs);
+
+    ok, info_log = check_compile_errors(fs);
+    if !ok {
+        log_error("Could not compile geometry shader %", info_log);
+        return 0, false;
+    }
+
+    result := glCreateProgram();
+    glAttachShader(result, vs);
+    glAttachShader(result, fs);
+    glAttachShader(result, gs);
+    glLinkProgram(result);
+
+    ok, info_log = check_link_errors(result);
+	if !ok {
+		log_error ("Could not link shader program: %", info_log);
+		glDeleteProgram(result);
+		return 0, false;
+	}
+
+    return result, true;
+}
+
 #scope_export
 
 draw_line :: inline (start : Vector3, end : Vector3, color : Vector4)
@@ -195,6 +293,10 @@ init_buffers :: (mdl_model: MDLModel) {
 
     g_cube_shader, ok = create_shader_program (CUBE_VERTEX_SHADER, CUBE_FRAGMENT_SHADER);
 	if !ok
+		return;
+
+    g_viz_normal_shader, ok = create_shader_program (VIZ_NORMALS_VERTEX_SHADER, VIZ_NORMALS_FRAGMENT_SHADER, VIZ_NORMALS_GEOMETRY_SHADER);
+    if !ok
 		return;
 
     glGenVertexArrays(1, *g_VAO);
@@ -309,7 +411,7 @@ update_buffers :: (mdl_model: MDLModel) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
 }
 
-render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, aspect: float, angle: float, anim_index: int, shading_mode: s32) {
+render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, shading_mode: s32, show_normals: bool) {
     glUseProgram(g_shader);
 
     // TODO(Oskar): Pass vector3 instead of this annoying indexing.
@@ -339,12 +441,13 @@ render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, a
     glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame_next].normals.data);
 
     r1: Quaternion;
-    set_from_axis_and_angle(*r1, 0, 1, 0, angle * PI / 180.0);
-
     r2: Quaternion;
+    if !rotate {
+        angle = 0;
+    }  
+
+    set_from_axis_and_angle(*r1, 0, 1, 0, angle * PI / 180.0);
     set_from_axis_and_angle(*r2, 1, 0, 0, -90.0 * PI / 180.0);    
-
-
     model_matrix := rotation_matrix(Matrix4, r1*r2) * make_translation_matrix4(Vector3.{0.0, 0.0, 2.0}) * make_scale_matrix4(Vector3.{0.1, 0.1, 0.1});
 
     glUniformMatrix4fv(glGetUniformLocation(g_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
@@ -364,6 +467,14 @@ render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, a
 
     glBindVertexArray(g_VAO);
     glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
+
+    if show_normals {
+        glUseProgram(g_viz_normal_shader);
+        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
+        glDrawElements(GL_POINTS, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
+    }
+
     glBindVertexArray(0);
 
     draw_cube(Vector3.{lightPos[0], lightPos[1], lightPos[2]});
@@ -495,6 +606,66 @@ out vec4 Frag_Color;
 void main()
 {
     Frag_Color = vec4(1.0);
+}
+
+GLSL
+
+VIZ_NORMALS_VERTEX_SHADER :: #string GLSL
+
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+
+out vec3 vNormal;
+
+void main()
+{
+    vNormal = aNormal;
+
+    gl_Position = vec4(aPos, 1.0);
+}
+
+GLSL
+
+VIZ_NORMALS_FRAGMENT_SHADER :: #string GLSL
+
+out vec4 Frag_Color;
+
+in vec3 vColor;
+
+void main()
+{
+    Frag_Color = vec4(vColor, 1.0);
+}
+
+GLSL
+
+VIZ_NORMALS_GEOMETRY_SHADER :: #string GLSL
+
+layout(points) in;
+layout(line_strip, max_vertices = 2) out;
+
+out vec3 vColor;
+
+in vec3 vNormal[];
+
+uniform mat4 model;
+uniform mat4 view_projection;
+uniform float length = 1.0;
+
+void main()
+{
+    vec3 normal = normalize(vNormal[0]);
+    vColor = abs(normal);
+
+    vec4 v0 = gl_in[0].gl_Position;
+    gl_Position = view_projection * model * v0;
+    EmitVertex();
+
+    vec4 v1 = v0 + vec4(normal * length, 0.0);
+    gl_Position = view_projection * model * v1;
+    EmitVertex();
+
+    EndPrimitive();
 }
 
 GLSL

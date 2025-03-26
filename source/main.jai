@@ -288,7 +288,7 @@ main :: () {
 			draw_line (xyz (-25, 0, xx i), xyz (25, 0, xx i), .{0.4, 0.4, 0.4, 1});
         }
 
-        render(g_model, frame, frame_next, anim_lerp, aspect, angle, g_params.frame_index, cast(s32)g_params.shading_mode);
+        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.rotate, angle, g_params.frame_index, cast(s32)g_params.shading_mode, g_params.show_normals);
         
         update_ui (delta_time);
 
