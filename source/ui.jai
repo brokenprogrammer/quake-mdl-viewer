@@ -14,14 +14,15 @@ g_params : struct {
     mdl_names: []string;
     mdl_index: s32;
 	mdl_index_last_frame: s32;
+	mdl_scroll_value: float;
 	frame_names: []string;
 	frame_index: s32;
 	animation_time := 0.0;
 	animation_speed_in_fps := 10.0;
-	rotate := true;
+	rotate := false;
 	show_animation := true;
-	show_normals := true;
-	interpolation_mode := Interpolation_Mode.LINEAR;
+	show_normals := false;
+	interpolation_mode := Interpolation_Mode.LINEAR; // TODO(Oskar): Implement this later.
 	shading_mode := Shading_Mode.TEXTURE;
 };
 
@@ -64,10 +65,11 @@ update_ui :: (delta_time: float) {
 		r.x += dropdown_offset;
 		defer r.x -= dropdown_offset;
 		r.w = dropdown_width;
-		getrect.dropdown (
+		getrect.scrollable_dropdown (
 			r,
 			mdl_names,
 			*mdl_index,
+			*mdl_scroll_value,
 			*dropdown_theme
 		);
 	}
@@ -93,19 +95,23 @@ update_ui :: (delta_time: float) {
 		getrect.slider (r, *animation_speed_in_fps, 0.0, 120.0, 1.0, *slider_theme, "Animation Speed: ", "FPS");
 	}
 	r.y -= pad;
-	// Animation time slider
-	{
-		sample_count := g_model.animations[frame_index].frames.count / 1.0;
-		// if animation_index > 0
-		// {
-		// 	anim := table_find_pointer (*g_loaded_animations, animation_names[animation_index]);
-		// 	sample_count = anim.sample_count;
-		// }
-		text := tprint ("Animation Time: %.00", sample_count);
-		r.w = w * 0.1 + xx simp.prepare_text (g_slider_font, text);
-		getrect.slider (r, *animation_time, 0.0, xx sample_count, 1.0, *slider_theme, "Animation Time: ", "");
-	}
+
+	if g_model.animations[frame_index].frames.count > 1 {
+		// Animation time slider
+		{
+			sample_count := g_model.animations[frame_index].frames.count / 1.0;
+			// if animation_index > 0
+			// {
+			// 	anim := table_find_pointer (*g_loaded_animations, animation_names[animation_index]);
+			// 	sample_count = anim.sample_count;
+			// }
+			text := tprint ("Animation Time: %.00", sample_count);
+			r.w = w * 0.1 + xx simp.prepare_text (g_slider_font, text);
+			getrect.slider (r, *animation_time, 0.0, xx sample_count, 1.0, *slider_theme, "Animation Time: ", "");
+		}
 		r.y -= pad;
+	}
+
 	// Perform Rotation checkbox
 	{
 		r.w = r.h + xx simp.prepare_text (g_checkbox_font, "Rotate");
@@ -120,29 +126,7 @@ update_ui :: (delta_time: float) {
 		show_normals ^= pressed;
 	}
 	r.y -= pad;
-	// Show Animations checkbox
-	{
-		r.w = r.h + xx simp.prepare_text (g_checkbox_font, "Show Animation");
-		pressed := getrect.base_checkbox (r, "Show Animation", show_animation, *checkbox_theme);
-		show_animation ^= pressed;
-	}
-	r.y -= pad;
-	// Interpolation mode
-	{
-		r.w = xx simp.prepare_text (g_font, "Interpolation Mode: ");
-		getrect.label (r, "Interpolation Mode: ", *label_theme);
-		r.x += dropdown_offset;
-		defer r.x -= dropdown_offset;
-		r.w = dropdown_width;
-		getrect.dropdown (
-			r,
-			string.[ "Nearest", "Linear", "Linear, slerp" ],
-			cast (*s32) *interpolation_mode,
-			*dropdown_theme
-		);
-	}
-	r.y -= pad;
-	// Rendering mode
+	// Shading mode
 	{
 		r.w = xx simp.prepare_text (g_font, "Shading Mode: ");
 		getrect.label (r, "Shading Mode: ", *label_theme);
