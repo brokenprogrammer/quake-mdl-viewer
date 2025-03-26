@@ -470,9 +470,11 @@ render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, a
 
     if show_normals {
         glUseProgram(g_viz_normal_shader);
-        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "view"), 1, GL_TRUE, *g_camera.view_matrix.coef[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "projection"), 1, GL_TRUE, *g_camera.projection_matrix.coef[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
-        glDrawElements(GL_POINTS, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
+        glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
+        glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
     }
 
     glBindVertexArray(0);
@@ -612,16 +614,27 @@ GLSL
 
 VIZ_NORMALS_VERTEX_SHADER :: #string GLSL
 
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNormal;
+layout (location = 0) in vec3 aCurrentFramePos;
+layout (location = 1) in vec3 aNextFramePos;
+layout (location = 2) in vec3 aCurrentFrameNormal;
+layout (location = 3) in vec3 aNextFrameNormal;
 
-out vec3 vNormal;
+out VS_OUT {
+    vec3 normal;
+} vs_out;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform float interpolation;
 
 void main()
 {
-    vNormal = aNormal;
+    vec3 aPos = (aCurrentFramePos * (1.0 - interpolation)) + (aNextFramePos * interpolation);
+    vec3 aNormal = (aCurrentFrameNormal * (1.0 - interpolation)) + (aNextFrameNormal * interpolation);
 
-    gl_Position = vec4(aPos, 1.0);
+    gl_Position = view * model * vec4(aPos, 1.0);
+    mat3 normalMatrix = mat3(transpose(inverse(view * model)));
+    vs_out.normal = normalize(vec3(vec4(normalMatrix * aNormal, 0.0)));
 }
 
 GLSL
@@ -630,42 +643,41 @@ VIZ_NORMALS_FRAGMENT_SHADER :: #string GLSL
 
 out vec4 Frag_Color;
 
-in vec3 vColor;
-
 void main()
 {
-    Frag_Color = vec4(vColor, 1.0);
+    Frag_Color = vec4(1.0, 1.0, 0.0, 1.0);
 }
 
 GLSL
 
 VIZ_NORMALS_GEOMETRY_SHADER :: #string GLSL
 
-layout(points) in;
-layout(line_strip, max_vertices = 2) out;
+layout(triangles) in;
+layout(line_strip, max_vertices = 6) out;
 
-out vec3 vColor;
+in VS_OUT {
+    vec3 normal;
+} gs_in[];
 
-in vec3 vNormal[];
+const float MAGNITUDE = 0.4;
 
-uniform mat4 model;
-uniform mat4 view_projection;
-uniform float length = 1.0;
+uniform mat4 projection;
+
+void GenerateLine(int index)
+{
+    gl_Position = projection * gl_in[index].gl_Position;
+    EmitVertex();
+    gl_Position = projection * (gl_in[index].gl_Position + 
+                                vec4(gs_in[index].normal, 0.0) * MAGNITUDE);
+    EmitVertex();
+    EndPrimitive();
+}
 
 void main()
 {
-    vec3 normal = normalize(vNormal[0]);
-    vColor = abs(normal);
-
-    vec4 v0 = gl_in[0].gl_Position;
-    gl_Position = view_projection * model * v0;
-    EmitVertex();
-
-    vec4 v1 = v0 + vec4(normal * length, 0.0);
-    gl_Position = view_projection * model * v1;
-    EmitVertex();
-
-    EndPrimitive();
+    GenerateLine(0); // first vertex normal
+    GenerateLine(1); // second vertex normal
+    GenerateLine(2); // third vertex normal
 }
 
 GLSL
