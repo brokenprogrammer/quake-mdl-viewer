@@ -412,6 +412,11 @@ update_buffers :: (mdl_model: MDLModel) {
 }
 
 render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, shading_mode: s32, show_normals: bool) {
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_MULTISAMPLE);
+    glCullFace(GL_FRONT);
+    glFrontFace(GL_CCW);
+
     glUseProgram(g_shader);
 
     // TODO(Oskar): Pass vector3 instead of this annoying indexing.
