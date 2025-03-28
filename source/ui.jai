@@ -11,6 +11,7 @@ Shading_Mode :: enum s32 {
 }
 
 g_params : struct {
+	theme: getrect.Overall_Theme;
     mdl_names: []string;
     mdl_index: s32;
 	mdl_index_last_frame: s32;
@@ -29,6 +30,10 @@ g_params : struct {
 update_ui :: (delta_time: float) {
     using g_params;
 
+	theme_proc := getrect.default_theme_procs[xx getrect.Default_Themes.Bentonite];
+	theme = theme_proc();
+	getrect.set_default_theme(theme);
+
     glDisable (GL_DEPTH_TEST);
 	glDepthMask (GL_FALSE);
 
@@ -38,13 +43,14 @@ update_ui :: (delta_time: float) {
 	getrect.ui_per_frame_update (g_window, w, h, current_time);
 
     // Init themes
-	label_theme : getrect.Label_Theme;
+	label_theme := theme.label_theme;
 	label_theme.font = g_font;
-	checkbox_theme : getrect.Checkbox_Theme;
+	checkbox_theme := theme.checkbox_theme;
 	checkbox_theme.font = g_checkbox_font;
-	slider_theme : getrect.Slider_Theme;
+	slider_theme := theme.slider_theme;
 	slider_theme.foreground.font = g_slider_font;
-	dropdown_theme := getrect.default_overall_theme.dropdown_theme;
+
+	dropdown_theme := theme.dropdown_theme;
 	dropdown_theme.theme_for_current_value.font = g_dropdown_font;
 	dropdown_theme.theme_for_each_choice.font = g_dropdown_font;
 	dropdown_theme.theme_for_current_choice.font = g_dropdown_font;
@@ -100,11 +106,6 @@ update_ui :: (delta_time: float) {
 		// Animation time slider
 		{
 			sample_count := g_model.animations[frame_index].frames.count / 1.0;
-			// if animation_index > 0
-			// {
-			// 	anim := table_find_pointer (*g_loaded_animations, animation_names[animation_index]);
-			// 	sample_count = anim.sample_count;
-			// }
 			text := tprint ("Animation Time: %.00", sample_count);
 			r.w = w * 0.1 + xx simp.prepare_text (g_slider_font, text);
 			getrect.slider (r, *animation_time, 0.0, xx sample_count, 1.0, *slider_theme, "Animation Time: ", "");

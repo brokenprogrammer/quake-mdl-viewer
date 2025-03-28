@@ -51,17 +51,6 @@ Vector3_U8 :: struct {
     x, y, z: u8;
 }
 
-// gl_texture: GLuint;
-// gl_vertices: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Vertices
-// gl_normals: [MAX_FRAME_COUNT][2*MAX_VERTEX_COUNT][3]GLfloat;   // Normals
-// gl_texcoords: [2*MAX_VERTEX_COUNT][2]GLfloat;                   // Tex coords
-// gl_triangles: [MAX_TRIANGLE_COUNT][3]GLuint;                    // Index buffer
-// gl_triangle_count: GLsizei;
-// gl_vertex_count: GLsizei;
-// gl_frame_count: GLsizei;
-
-anim_name: [MAX_FRAME_COUNT][16]u8;
-
 mdl_file_names: [..]string;
 
 handle_window_event :: (event : Event)
@@ -179,15 +168,6 @@ main :: () {
     getrect.ui_init ();
 	init_fonts ();
 
-    // glGenTextures(1, *gl_texture);
-    // glBindTexture(GL_TEXTURE_2D, gl_texture);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    // glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-
     file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
     if !file_success {
         print("Could not open pak file!\n");
@@ -240,30 +220,13 @@ main :: () {
 
         update_frame(delta_time, file, pak_files, color_palette);
 
-		// TODO(Oskar): Remove when I feel confident.
-        // if is_key_pressed(xx #char "F") {
-        //     mdl_file_index = (mdl_file_index + 1) % mdl_file_names.count;
-        //     for pak_files {
-        //         if contains(to_string(it.name.data), mdl_file_names[mdl_file_index]) {
-        //             g_model = load_mdl(file, it, color_palette);
-        //             update_buffers(gl_texcoords, gl_triangles);
-        //             break;
-        //         }    
-        //     }
-        // }
-
         time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
         angle: float = fmod_cycling(-180 + time * 360 / 5, 360);
 
-        anim: float = g_params.animation_time;//time * ANIMATION_FRAMES_PER_SECOND;
+        anim: float = g_params.animation_time;
         anim_lerp: float = fmod_cycling(anim, 1.0);
         frame: int = cast(int)anim % g_model.animations[g_params.frame_index].frames.count;
         frame_next: int = (frame + 1) % g_model.animations[g_params.frame_index].frames.count;
-
-        // curr_anim: [16]u8; 
-        // memcpy(curr_anim.data, *anim_name[frame], 16);
-        // title := sprint("q1 - %", to_string(curr_anim.data));
-        // SDL_SetWindowTitle(window, title.data);
 
         glViewport(0, 0, xx g_current_window_width, xx g_current_window_height);
 

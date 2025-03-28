@@ -1,8 +1,5 @@
-MAX_FILE_COUNT :: 1024;
 MAX_TRIANGLE_COUNT :: 2048;
 MAX_VERTEX_COUNT :: 1024;
-MAX_FRAME_COUNT :: 256;
-ANIMATION_FRAMES_PER_SECOND :: 10;
 
 PakHeader :: struct {
     id: [4]u8;
@@ -60,7 +57,6 @@ MDLFrame :: struct {
     name: [16]u8;
 };
 
-// TODO(Oskar): Use this.
 MDLModelAnimation :: struct {
     name: string;
     frames: [..]MDLModelFrame;
@@ -79,7 +75,6 @@ MDLModel :: struct {
     texture_coordinates: []Vector2_GLfloat;
     indices: []Vector3_GLuint;              // Known as triangles before, vertex indices that forms triangles.
     vertex_count: u32;
-    // frames: [..]MDLModelFrame;              // TODO(Oskar): Should this be resizeable? If it should we need to array_free upon cleanup.
     animations: [..]MDLModelAnimation;
 };
 
@@ -164,11 +159,6 @@ load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, mdl_model : *MDLMod
 
         mdl_model.texture_width = mdl_header.tex_width;
         mdl_model.texture_height = mdl_header.tex_height;
-        // TODO(Oskar): eventually move this to renderer.
-        // glBindTexture(GL_TEXTURE_2D, gl_texture);
-        // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        // glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-        // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_header.tex_width, mdl_header.tex_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
     }
 }
 
@@ -206,7 +196,7 @@ load_mdl_triangles :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) 
 
 load_mdl_vertices :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
     model_frames : [..]MDLModelFrame;
-    model_names : [..]string; // TODO(Oskar): Can we make this not use memcpy somehow and not have to sort afterwards?
+    model_names : [..]string;
 
     for frame: 0..mdl_header.frame_count - 1 {
         mdl_model_frame : MDLModelFrame;
@@ -220,13 +210,8 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
         mdl_frame: MDLFrame;
         file_read(file, *mdl_frame, size_of(MDLFrame));
 
-
         model_frame_name := to_string(mdl_frame.name.data);
         model_frame_name = trim_right(model_frame_name, "0123456789");
-
-        // model_frame_name.data = mdl_frame.name.data;
-        // model_frame_name.count = mdl_frame.name.count;
-        // memcpy(*model_names[frame], mdl_frame.name.data, mdl_frame.name.count);
 
         vertices: [MAX_VERTEX_COUNT]MDLVertex;
         file_read(file, *vertices, size_of(MDLVertex)*mdl_header.vertex_count);
