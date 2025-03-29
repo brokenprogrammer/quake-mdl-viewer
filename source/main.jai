@@ -8,7 +8,9 @@
 simp :: #import "Simp";
 getrect :: #import "GetRect";
 
+#load "pak.jai";
 #load "mdl.jai";
+#load "md2.jai";
 #load "anorms.jai";
 #load "render.jai";
 #load "camera.jai";
@@ -68,6 +70,11 @@ handle_window_event :: (event : Event)
 			if event.key_code == .F4 && event.alt_pressed
 				g_running = false;
 		}
+	case .DRAG_AND_DROP_FILES;
+		// TODO(Oskar): add additional files to our list of loadable files.
+		// for g_params.dropped_files free(it);
+		// array_reset(*g_params.dropped_files);
+		// for event.files array_add(*g_params.dropped_files, copy_string(it));
 	}
 }
 
@@ -154,12 +161,29 @@ main :: () {
     #if OS == .WINDOWS
 	{
 		win32 :: #import "Windows";
-		win32.SetProcessDPIAware ();
+		win32.SetProcessDPIAware();
+
+		// Windows is very bad at thread-switching by default unless you do this. Sad.
+        win32.timeBeginPeriod(1);
 	}
     
     g_current_window_width = 1280;
     g_current_window_height = 720;
 	g_window = create_window (g_current_window_width, g_current_window_height, "quake-mdl-viewer");
+	#if OS == .WINDOWS {
+		win32.DragAcceptFiles(g_window, cast(win32.BOOL) true);
+	} else #if OS == .LINUX {
+        X11 :: #import "X11";
+        typelist := string.["url/url", "text/uri-list", "text/plain", "application/octet-stream"];
+        X11.enable_drag_and_drop(my_window, typelist);
+    } else #if OS == .MACOS {
+        #import "Objective_C";
+        #import "Objective_C/AppKit";
+        types := NSArray(NSPasteboardType).arrayWithObject(NSPasteboardTypeFileURL);
+        NSView.registerForDraggedTypes(my_window, types);
+    }
+
+
     simp.set_render_target (g_window);
 
     print ("GL Vendor = %\n", to_string(glGetString(GL_VENDOR)));
@@ -168,7 +192,8 @@ main :: () {
     getrect.ui_init ();
 	init_fonts ();
 
-    file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
+    // file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
+	file, file_success := file_open("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake 2\\baseq2\\pak0.pak");
     if !file_success {
         print("Could not open pak file!\n");
         return;
@@ -181,8 +206,13 @@ main :: () {
     mdl_file_index := 0;
 
     for pak_files {
-        if contains(to_string(it.name.data), mdl_file_names[mdl_file_index]) {
-            g_model = load_mdl(file, it, color_palette);
+		file_name := to_string(it.name.data);
+        if contains(file_name, mdl_file_names[mdl_file_index]) {
+			if (ends_with(file_name, "mdl")) {
+            	g_model = load_mdl(file, it, color_palette);
+			} else if ends_with(file_name, "md2") {
+				load_md2(file, it);
+			}
             break;
         }    
     }
@@ -282,8 +312,13 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
     } else {
         // Did update mesh index.
         for pak_files {
-            if contains(to_string(it.name.data), g_params.mdl_names[g_params.mdl_index]) {
-                g_model = load_mdl(file, it, color_palette);
+			file_name := to_string(it.name.data);
+            if contains(file_name, g_params.mdl_names[g_params.mdl_index]) {
+				if ends_with(file_name, "mdl") {
+                	g_model = load_mdl(file, it, color_palette);
+				} else if ends_with(file_name, "md2") {
+					load_md2(file, it);
+				}
 
 				array_free(g_params.frame_names);
 				g_params.frame_names = mdl_get_animation_names(g_model);
