@@ -133,8 +133,7 @@ load_md2_triangles :: (file: File, md2_header: MD2Header, md2_model: *MD2Model, 
     file_read(file, triangles.data, size_of(MD2Triangle) * md2_header.triangle_count);
 
     md2_model.indices = NewArray(md2_header.triangle_count, Vector3_GLuint);
-    // md2_model.texture_coordinates_indices = NewArray(md2_header.triangle_count, Vector3_GLuint);
-     md2_model.texture_coordinates = NewArray(md2_header.triangle_count * 3, Vector2_GLfloat);
+    md2_model.texture_coordinates = NewArray(md2_header.triangle_count * 3, Vector2_GLfloat);
     for 0..md2_header.triangle_count - 1 {
         md2_model.indices[it].x = triangles[it].vertex.x;
         md2_model.indices[it].y = triangles[it].vertex.y;
@@ -260,7 +259,7 @@ load_md2 :: (file: File, md2_file: PakFile, pak_files: [] PakFile) -> MD2Model {
             md2_model.texture_width = width;
             md2_model.texture_height = height;
             md2_model.texture_data.data = pixels;
-            md2_model.texture_data.count = (width * height) * 4;
+            md2_model.texture_data.count = (width * height) * 3;
 
             break;
         }
