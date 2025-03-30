@@ -204,7 +204,7 @@ draw_cube :: (position: Vector3) {
 }
 
 
-init_buffers :: (mdl_model: MDLModel) {
+init_buffers :: (mdl_model: MD2Model) {
     ok: bool;
 
     g_shader, ok = create_shader_program (MDL_VERTEX_SHADER, MDL_FRAGMENT_SHADER);
@@ -307,7 +307,7 @@ init_buffers :: (mdl_model: MDLModel) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
 }
 
-update_buffers :: (mdl_model: MDLModel) {
+update_buffers :: (mdl_model: MD2Model) {
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFramePos);
     glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
 
@@ -334,11 +334,11 @@ update_buffers :: (mdl_model: MDLModel) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
 }
 
-render :: (mdl_model: MDLModel, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, shading_mode: s32, show_normals: bool) {
-    glEnable(GL_CULL_FACE);
-    glEnable(GL_MULTISAMPLE);
-    glCullFace(GL_FRONT);
-    glFrontFace(GL_CCW);
+render :: (mdl_model: MD2Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, shading_mode: s32, show_normals: bool) {
+    // glEnable(GL_CULL_FACE);
+    // glEnable(GL_MULTISAMPLE);
+    // glCullFace(GL_FRONT);
+    // glFrontFace(GL_CCW);
 
     glUseProgram(g_shader);
     

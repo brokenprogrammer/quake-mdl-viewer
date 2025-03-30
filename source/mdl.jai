@@ -169,7 +169,7 @@ load_mdl_texcoords :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) 
         mdl_model.texture_coordinates[it].y = t / mdl_header.tex_height;
 
         a := ifx mdl_texcoord[it].seam 0.5 else 0.0;
-        mdl_model.texture_coordinates[it + mdl_header.vertex_count].x = (s + mdl_header.tex_width * (a)) / mdl_header.tex_width;;
+        mdl_model.texture_coordinates[it + mdl_header.vertex_count].x = (s + mdl_header.tex_width * (a)) / mdl_header.tex_width;
         mdl_model.texture_coordinates[it + mdl_header.vertex_count].y = t / mdl_header.tex_height;        
     }
 }
@@ -233,6 +233,7 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
 
         // TODO(Oskar): Cleanup on model unload?
         array_add(*model_frames, mdl_model_frame);
+        // TODO(Oskar): can we just copy the string somehow and not use sprint?
         array_add(*model_names, sprint("%", model_frame_name));
         // array_add(*mdl_model.frames, mdl_model_frame); // TODO(Oskar): This is to be removed.
     }

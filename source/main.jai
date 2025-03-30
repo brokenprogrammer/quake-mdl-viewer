@@ -4,6 +4,7 @@
 #import "Input";
 #import "GL";
 #import "Math";
+#import "stb_image";
 
 simp :: #import "Simp";
 getrect :: #import "GetRect";
@@ -27,7 +28,7 @@ g_checkbox_font: *simp.Dynamic_Font;
 g_slider_font: *simp.Dynamic_Font;
 g_dropdown_font: *simp.Dynamic_Font;
 
-g_model: MDLModel;
+g_model: MD2Model;
 
 Vector2_GLfloat :: struct {
     x, y: GLfloat;
@@ -51,6 +52,10 @@ Vector3_U32 :: struct {
 
 Vector3_U8 :: struct {
     x, y, z: u8;
+}
+
+Vector3_U16 :: struct {
+    x, y, z: u16;
 }
 
 mdl_file_names: [..]string;
@@ -209,9 +214,9 @@ main :: () {
 		file_name := to_string(it.name.data);
         if contains(file_name, mdl_file_names[mdl_file_index]) {
 			if (ends_with(file_name, "mdl")) {
-            	g_model = load_mdl(file, it, color_palette);
+            	//g_model = load_mdl(file, it, color_palette);
 			} else if ends_with(file_name, "md2") {
-				load_md2(file, it);
+				g_model = load_md2(file, it, pak_files);
 			}
             break;
         }    
@@ -220,8 +225,8 @@ main :: () {
     g_params.mdl_index = xx mdl_file_index;
 	g_params.mdl_index_last_frame = g_params.mdl_index;
 
-	g_params.frame_names = mdl_get_animation_names(g_model);
-	g_params.frame_index = 0;
+	//g_params.frame_names = mdl_get_animation_names(g_model);
+	//g_params.frame_index = 0;
 
     init_buffers(g_model);
 
@@ -315,14 +320,14 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
 			file_name := to_string(it.name.data);
             if contains(file_name, g_params.mdl_names[g_params.mdl_index]) {
 				if ends_with(file_name, "mdl") {
-                	g_model = load_mdl(file, it, color_palette);
+                	//g_model = load_mdl(file, it, color_palette);
 				} else if ends_with(file_name, "md2") {
-					load_md2(file, it);
+					g_model = load_md2(file, it, pak_files);
 				}
 
 				array_free(g_params.frame_names);
-				g_params.frame_names = mdl_get_animation_names(g_model);
-				g_params.frame_index = 0;
+				// g_params.frame_names = mdl_get_animation_names(g_model);
+				// g_params.frame_index = 0;
 
 				g_params.mdl_index_last_frame = g_params.mdl_index;
 
