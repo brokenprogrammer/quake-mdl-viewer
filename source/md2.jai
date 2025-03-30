@@ -255,7 +255,14 @@ load_md2 :: (file: File, md2_file: PakFile, pak_files: [] PakFile) -> MD2Model {
                 return md2_model;
             }
 
-            
+            pixels, width, height := load_pcx(file, it.offset, it.size);
+
+            md2_model.texture_width = width;
+            md2_model.texture_height = height;
+            md2_model.texture_data.data = pixels;
+            md2_model.texture_data.count = (width * height) * 4;
+
+            break;
         }
     }
 

@@ -24,7 +24,7 @@ g_params : struct {
 	show_animation := true;
 	show_normals := false;
 	interpolation_mode := Interpolation_Mode.LINEAR; // TODO(Oskar): Implement this later.
-	shading_mode := Shading_Mode.COLOR;
+	shading_mode := Shading_Mode.TEXTURE;
 };
 
 update_ui :: (delta_time: float) {

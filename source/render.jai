@@ -304,7 +304,7 @@ init_buffers :: (mdl_model: MD2Model) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
 }
 
 update_buffers :: (mdl_model: MD2Model) {
@@ -331,7 +331,7 @@ update_buffers :: (mdl_model: MD2Model) {
     glBindTexture(GL_TEXTURE_2D, g_texture);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
 }
 
 render :: (mdl_model: MD2Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, shading_mode: s32, show_normals: bool) {

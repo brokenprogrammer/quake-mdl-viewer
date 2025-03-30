@@ -12,6 +12,7 @@ getrect :: #import "GetRect";
 #load "pak.jai";
 #load "mdl.jai";
 #load "md2.jai";
+#load "pcx.jai";
 #load "anorms.jai";
 #load "render.jai";
 #load "camera.jai";
