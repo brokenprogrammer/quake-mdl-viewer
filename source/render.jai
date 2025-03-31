@@ -9,7 +9,7 @@ g_VBO_NextFramePos: GLuint;
 g_VBO_CurrentFrameNormals: GLuint;
 g_VBO_NextFrameNormals: GLuint;
 g_VBO_Texcoords: GLuint;
-g_EBO: GLuint;
+// g_EBO: GLuint;
 
 g_texture: GLuint;
 
@@ -204,7 +204,7 @@ draw_cube :: (position: Vector3) {
 }
 
 
-init_buffers :: (mdl_model: MD2Model) {
+init_buffers :: (mdl_model: Model) {
     ok: bool;
 
     g_shader, ok = create_shader_program (MDL_VERTEX_SHADER, MDL_FRAGMENT_SHADER);
@@ -229,7 +229,7 @@ init_buffers :: (mdl_model: MD2Model) {
     glGenBuffers(1, *g_VBO_CurrentFrameNormals);
     glGenBuffers(1, *g_VBO_NextFrameNormals);
     glGenBuffers(1, *g_VBO_Texcoords);
-    glGenBuffers(1, *g_EBO);
+    // glGenBuffers(1, *g_EBO);
 
     glBindVertexArray(g_VAO);
 
@@ -257,14 +257,14 @@ init_buffers :: (mdl_model: MD2Model) {
 
     // Texture Coordinates VBO (static)
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Texcoords);
-    glBufferData(GL_ARRAY_BUFFER, mdl_model.texture_coordinates.count * size_of(Vector2_GLfloat), mdl_model.texture_coordinates.data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, size_of(Vector2_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, 2 * size_of(GLfloat), cast(*void)0);
     glEnableVertexAttribArray(4);
 
 
     // Elements (Triangles) VBO (static)
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(Vector3_GLuint) * mdl_model.indices.count, mdl_model.indices.data, GL_STATIC_DRAW);
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_EBO);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(Vector3_GLuint) * mdl_model.indices.count, mdl_model.indices.data, GL_STATIC_DRAW);
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -304,10 +304,10 @@ init_buffers :: (mdl_model: MD2Model) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[0].skin_width, mdl_model.skins[0].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[0].skin_data.data);
 }
 
-update_buffers :: (mdl_model: MD2Model) {
+update_buffers :: (mdl_model: Model) {
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFramePos);
     glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
 
@@ -321,20 +321,20 @@ update_buffers :: (mdl_model: MD2Model) {
     glBufferData(GL_ARRAY_BUFFER, size_of(Vector3_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
     
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Texcoords);
-    glBufferData(GL_ARRAY_BUFFER, mdl_model.texture_coordinates.count * size_of(Vector2_GLfloat), mdl_model.texture_coordinates.data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, size_of(Vector2_GLfloat) * mdl_model.vertex_count, null, GL_DYNAMIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(Vector3_GLuint) * mdl_model.indices.count, mdl_model.indices.data, GL_STATIC_DRAW);
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_EBO);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(Vector3_GLuint) * mdl_model.indices.count, mdl_model.indices.data, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     glBindTexture(GL_TEXTURE_2D, g_texture);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.texture_width, mdl_model.texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.texture_data.data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[0].skin_width, mdl_model.skins[0].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[0].skin_data.data);
 }
 
-render :: (mdl_model: MD2Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, shading_mode: s32, show_normals: bool) {
+render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, shading_mode: s32, show_normals: bool) {
     // glEnable(GL_CULL_FACE);
     // glEnable(GL_MULTISAMPLE);
     // glCullFace(GL_FRONT);
@@ -353,6 +353,10 @@ render :: (mdl_model: MD2Model, frame: int, frame_next: int, anim_lerp: float, a
 
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFrameNormals);
     glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame_next].normals.data);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Texcoords);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector2_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame].texcoords.data);
+
 
     r1: Quaternion;
     r2: Quaternion;
@@ -380,16 +384,17 @@ render :: (mdl_model: MD2Model, frame: int, frame_next: int, anim_lerp: float, a
     glUniform1i(glGetUniformLocation(g_shader, "texture1"), 0);
 
     glBindVertexArray(g_VAO);
-    glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
+    glDrawArrays(GL_TRIANGLES, 0, mdl_model.vertex_count);
+    // glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
 
-    if show_normals {
-        glUseProgram(g_viz_normal_shader);
-        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "view"), 1, GL_TRUE, *g_camera.view_matrix.coef[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "projection"), 1, GL_TRUE, *g_camera.projection_matrix.coef[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
-        glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
-        glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
-    }
+    // if show_normals {
+    //     glUseProgram(g_viz_normal_shader);
+    //     glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "view"), 1, GL_TRUE, *g_camera.view_matrix.coef[0][0]);
+    //     glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "projection"), 1, GL_TRUE, *g_camera.projection_matrix.coef[0][0]);
+    //     glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
+    //     glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
+    //     glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
+    // }
 
     glBindVertexArray(0);
 
@@ -468,7 +473,8 @@ void main() {
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
 
-    vec4 result = vec4(ambient + diffuse, 1.0) * objectColor;
+    // vec4(ambient + diffuse, 1.0) *
+    vec4 result = objectColor;
     FragColor = result;
 }
 GLSL

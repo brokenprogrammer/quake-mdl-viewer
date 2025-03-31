@@ -9,6 +9,7 @@
 simp :: #import "Simp";
 getrect :: #import "GetRect";
 
+#load "model.jai";
 #load "pak.jai";
 #load "mdl.jai";
 #load "md2.jai";
@@ -29,7 +30,7 @@ g_checkbox_font: *simp.Dynamic_Font;
 g_slider_font: *simp.Dynamic_Font;
 g_dropdown_font: *simp.Dynamic_Font;
 
-g_model: MD2Model;
+g_model: Model;
 
 Vector2_GLfloat :: struct {
     x, y: GLfloat;
