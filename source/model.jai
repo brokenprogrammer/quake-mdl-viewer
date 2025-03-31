@@ -6,12 +6,6 @@ Skin :: struct {
     skin_data: []u8;
 }
 
-// Vertex :: struct {
-//     position: Vector3_GLfloat;
-//     normal: Vector3_GLfloat;
-//     texcoord: Vector2_GLfloat;
-// };
-
 AnimationFrame :: struct {
     vertices: []Vector3_GLfloat;
     normals: []Vector3_GLfloat;
@@ -29,3 +23,10 @@ Model :: struct {
     vertex_count: u32;
     skins: []Skin;
 };
+
+
+// Vertex :: struct {
+//     position: Vector3_GLfloat;
+//     normal: Vector3_GLfloat;
+//     texcoord: Vector2_GLfloat;
+// };
