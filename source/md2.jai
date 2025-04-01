@@ -292,11 +292,11 @@ load_md2 :: (file: File, md2_file: PakFile, pak_files: [] PakFile) -> Model {
             }
 
             //TODO(Oskar): Something crazy going on here that makes us crash on some models..
-            pixels, width, height := load_pcx(file, it.offset, it.size);
-            model.skins[0].skin_width = width;
-            model.skins[0].skin_height = height;
-            model.skins[0].skin_data.data = pixels;
-            model.skins[0].skin_data.count = (width * height) * 3;
+            image, suck := load_pcx(file, it.offset, it.size);
+            model.skins[0].skin_width = xx image.width;
+            model.skins[0].skin_height = xx image.height;
+            model.skins[0].skin_data.data = image.data;
+            model.skins[0].skin_data.count = xx image.data_count;
 
             break;
         }
