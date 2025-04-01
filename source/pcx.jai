@@ -24,7 +24,7 @@ PCXHeader :: struct {
 };
 
 
-decode_rle :: (encoded_data: *u8, encoded_data_size: u32, decoded_size: u32) -> *u8{
+decode_rle :: (encoded_data: *u8, encoded_data_size: u32, decoded_size: u32, header: PCXHeader) -> *u8{
     decoded_data := cast(*u8) alloc(decoded_size);
     source : u32 = 0;
     dest : u32 = 0;
@@ -32,17 +32,17 @@ decode_rle :: (encoded_data: *u8, encoded_data_size: u32, decoded_size: u32) -> 
     while (dest < decoded_size) && (source < encoded_data_size) {
         byte : u8 = encoded_data[source];
         source += 1;
-        run_lenght := 1;
+        run_lenght:s32 = 1;
 
         if ((byte & 0xC0) == 0xC0) {
-            run_length: u8 = byte & 0x3F;
+            run_length := byte & 0x3F;
             byte = encoded_data[source];
             source += 1;
 
             while run_lenght > 0 {
-                defer run_lenght -= 1;
                 decoded_data[dest] = byte;
                 dest += 1;
+                run_lenght -= 1;
             }
         } else {
             decoded_data[dest] = byte;
@@ -70,7 +70,7 @@ load_pcx :: (file: File, file_offset: u32, file_size: u32) -> *u8, u32, u32 {
 
     pcx_header.width = (pcx_header.width - pcx_header.x) + 1;
     pcx_header.height = (pcx_header.height - pcx_header.y) + 1;
-    texture_data_size := pcx_header.width * pcx_header.height;
+    texture_data_size : u32 = cast(u32)pcx_header.width * cast(u32)pcx_header.height;
 
     encoded_size := file_size - 128;
     encoded_data := cast(*u8) alloc(encoded_size);
@@ -83,7 +83,7 @@ load_pcx :: (file: File, file_offset: u32, file_size: u32) -> *u8, u32, u32 {
         return null, 0, 0; 
     }
 
-    decoded_data := decode_rle(encoded_data, encoded_size, pcx_header.width * pcx_header.height);
+    decoded_data := decode_rle(encoded_data, encoded_size, cast(u32)pcx_header.width * cast(u32)pcx_header.height, pcx_header);
 
     if !file_seek(file, file_offset + file_size - 769, .START) { 
         return null, 0, 0; 
@@ -104,8 +104,8 @@ load_pcx :: (file: File, file_offset: u32, file_size: u32) -> *u8, u32, u32 {
     }
 
     pixels := cast(*u8) alloc(texture_data_size * 3);
-    for 0..(pcx_header.width * pcx_header.height - 1) {
-        color_index: u8 = decoded_data[it];
+    for 0..(texture_data_size - 1) {
+        color_index : u32 = decoded_data[it];
         pixels[it * 3 + 0] = palette_data[color_index * 3 + 0];
         pixels[it * 3 + 1] = palette_data[color_index * 3 + 1];
         pixels[it * 3 + 2] = palette_data[color_index * 3 + 2];

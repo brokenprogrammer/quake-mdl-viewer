@@ -4,7 +4,7 @@
 #import "Input";
 #import "GL";
 #import "Math";
-#import "stb_image";
+#import "File";
 
 simp :: #import "Simp";
 getrect :: #import "GetRect";

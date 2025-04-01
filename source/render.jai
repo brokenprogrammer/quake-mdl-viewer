@@ -387,14 +387,15 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
     glDrawArrays(GL_TRIANGLES, 0, mdl_model.vertex_count);
     // glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
 
-    // if show_normals {
-    //     glUseProgram(g_viz_normal_shader);
-    //     glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "view"), 1, GL_TRUE, *g_camera.view_matrix.coef[0][0]);
-    //     glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "projection"), 1, GL_TRUE, *g_camera.projection_matrix.coef[0][0]);
-    //     glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
-    //     glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
-    //     glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
-    // }
+    if show_normals {
+        glUseProgram(g_viz_normal_shader);
+        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "view"), 1, GL_TRUE, *g_camera.view_matrix.coef[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "projection"), 1, GL_TRUE, *g_camera.projection_matrix.coef[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
+        glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
+        glDrawArrays(GL_TRIANGLES, 0, mdl_model.vertex_count);
+        // glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
+    }
 
     glBindVertexArray(0);
 
@@ -473,8 +474,7 @@ void main() {
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
 
-    // vec4(ambient + diffuse, 1.0) *
-    vec4 result = objectColor;
+    vec4 result = vec4(ambient + diffuse, 1.0) * objectColor;
     FragColor = result;
 }
 GLSL
