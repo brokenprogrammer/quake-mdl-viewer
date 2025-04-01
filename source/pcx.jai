@@ -30,7 +30,7 @@ PCXImage :: struct {
     height: u64;
 };
 
-decode_rle :: (encoded_data: []u8, decoded_size: s64, header: PCXHeader) -> []u8 {
+decode_rle :: (encoded_data: []u8, decoded_size: int, header: PCXHeader) -> []u8 {
     decoded_data := NewArray(decoded_size, u8);
     source := 0;
     dest := 0;
@@ -66,7 +66,7 @@ decode_rle :: (encoded_data: []u8, decoded_size: s64, header: PCXHeader) -> []u8
     return decoded_data;
 }
 
-load_pcx :: (file: File, file_offset: s64, file_size: s64) -> PCXImage, bool {
+load_pcx :: (file: File, file_offset: int, file_size: int) -> PCXImage, bool {
     pcx_header: PCXHeader;
     if !file_read(file, *pcx_header, size_of(PCXHeader)) { 
         return .{}, false; 
@@ -84,9 +84,9 @@ load_pcx :: (file: File, file_offset: s64, file_size: s64) -> PCXImage, bool {
     pcx_header.width = (pcx_header.width - pcx_header.x) + 1;
     pcx_header.height = (pcx_header.height - pcx_header.y) + 1;
 
-    texture_width: s64 = pcx_header.width;
-    texture_height: s64 = pcx_header.height;
-    texture_data_size : s64 = texture_width * texture_height;
+    texture_width: int = pcx_header.width;
+    texture_height: int = pcx_header.height;
+    texture_data_size : int = texture_width * texture_height;
 
     encoded_size := file_size - 128;
     encoded_data := NewArray(xx encoded_size, u8);
@@ -103,7 +103,8 @@ load_pcx :: (file: File, file_offset: s64, file_size: s64) -> PCXImage, bool {
     decoded_data := decode_rle(encoded_data, texture_data_size, pcx_header);
     defer array_free(decoded_data);
 
-    if !file_seek(file, xx (file_offset + file_size - 769), .START) {
+    pallete_magic_value_offset := file_offset + file_size - 769;
+    if !file_seek(file, pallete_magic_value_offset, .START) {
         return .{}, false; 
     }
     
@@ -112,7 +113,7 @@ load_pcx :: (file: File, file_offset: s64, file_size: s64) -> PCXImage, bool {
         return .{}, false;
     }
 
-    if palette_magic_value != 12 {
+    if palette_magic_value != 0x0C {
         return .{}, false;
     }
 
@@ -124,7 +125,7 @@ load_pcx :: (file: File, file_offset: s64, file_size: s64) -> PCXImage, bool {
     pixel_count := cast(u64) texture_data_size * 3;
     pixels := cast(*u8) alloc(xx pixel_count);
     for 0..(texture_data_size - 1) {
-        color_index : u32 = decoded_data[it];
+        color_index: int = decoded_data[it];
         pixels[it * 3 + 0] = palette_data[color_index * 3 + 0];
         pixels[it * 3 + 1] = palette_data[color_index * 3 + 1];
         pixels[it * 3 + 2] = palette_data[color_index * 3 + 2];
