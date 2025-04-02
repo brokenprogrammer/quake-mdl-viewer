@@ -30,3 +30,14 @@ Model :: struct {
 //     normal: Vector3_GLfloat;
 //     texcoord: Vector2_GLfloat;
 // };
+
+model_get_animation_names :: (model: Model) -> []string {
+    names: [..]string;
+    array_reserve(*names, model.animations.count);
+
+    for model.animations {
+        array_add(*names, it.name);
+    }
+
+    return names;
+}

@@ -227,8 +227,8 @@ main :: () {
     g_params.mdl_index = xx mdl_file_index;
 	g_params.mdl_index_last_frame = g_params.mdl_index;
 
-	//g_params.frame_names = mdl_get_animation_names(g_model);
-	//g_params.frame_index = 0;
+	g_params.frame_names = model_get_animation_names(g_model);
+	g_params.frame_index = 0;
 
     init_buffers(g_model);
 
@@ -330,8 +330,8 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
 				}
 
 				array_free(g_params.frame_names);
-				// g_params.frame_names = mdl_get_animation_names(g_model);
-				// g_params.frame_index = 0;
+				g_params.frame_names = model_get_animation_names(g_model);
+				g_params.frame_index = 0;
 
 				g_params.mdl_index_last_frame = g_params.mdl_index;
 
