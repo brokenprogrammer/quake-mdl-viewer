@@ -1,4 +1,4 @@
-#import "Basic";
+#import "Basic"()(MEMORY_DEBUGGER=false);
 #import "String";
 #import "Window_Creation";
 #import "Input";
@@ -293,6 +293,8 @@ main :: () {
         update_ui (delta_time);
 
         simp.swap_buffers (g_window);
+
+		//report_memory_leaks();
 
         frame_end := current_time_monotonic();
 		delta_time = cast (float) to_float64_seconds(frame_end - frame_start);

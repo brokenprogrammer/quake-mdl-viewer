@@ -291,8 +291,11 @@ load_md2 :: (file: File, md2_file: PakFile, pak_files: [] PakFile) -> Model {
                 return model;
             }
 
+            log("Before PCX Load");
             //TODO(Oskar): Something crazy going on here that makes us crash on some models..
-            image, suck := load_pcx(file, it.offset, it.size);
+            image, suck := pcx_load(file, it.offset, it.size);
+
+            log("After PCX Load");
             model.skins[0].skin_width = xx image.width;
             model.skins[0].skin_height = xx image.height;
             model.skins[0].skin_data.data = image.data;

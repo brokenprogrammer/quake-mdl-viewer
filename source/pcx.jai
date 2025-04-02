@@ -1,3 +1,5 @@
+#scope_file
+
 PCXHeader :: struct {
     manafacturer: u8;
     version: u8;
@@ -23,14 +25,7 @@ PCXHeader :: struct {
     padding: [54]u8;
 };
 
-PCXImage :: struct {
-    data: *u8;
-    data_count: u64;
-    width: u64;
-    height: u64;
-};
-
-decode_rle :: (encoded_data: []u8, decoded_size: int, header: PCXHeader) -> []u8 {
+pcx_decode_rle :: (encoded_data: []u8, decoded_size: int, header: PCXHeader) -> []u8 {
     decoded_data := NewArray(decoded_size, u8);
     source := 0;
     dest := 0;
@@ -66,18 +61,106 @@ decode_rle :: (encoded_data: []u8, decoded_size: int, header: PCXHeader) -> []u8
     return decoded_data;
 }
 
-load_pcx :: (file: File, file_offset: int, file_size: int) -> PCXImage, bool {
-    pcx_header: PCXHeader;
-    if !file_read(file, *pcx_header, size_of(PCXHeader)) { 
-        return .{}, false; 
-    }
+pcx_verify_header :: (pcx_header: PCXHeader) -> bool {
+    valid := true;
 
-    if pcx_header.manafacturer != 10 || pcx_header.version != 5 || 
-       pcx_header.encoding != 1 || pcx_header.bits_per_pixel != 8 {
-        return .{}, false;
+    if pcx_header.manafacturer   != 10 || 
+       pcx_header.version        != 5  || 
+       pcx_header.encoding       != 1  || 
+       pcx_header.bits_per_pixel != 8  {
+        valid = false;
     }
 
     if pcx_header.bits_per_pixel * pcx_header.number_of_color_planes != 8 {
+        valid = false;
+    }
+
+    return valid;
+}
+
+pcx_read_palette :: (file: File, file_offset: int, file_size: int) -> bool, []u8 {
+    palette_magic_value: u8;
+    pallete_magic_value_file_location := file_offset + file_size - 769;
+
+    file_seek_success := file_seek(file, pallete_magic_value_file_location, .START);
+    if !file_seek_success {
+        return false, .[]; 
+    }
+    
+    file_read_success := file_read(file, *palette_magic_value, 1);
+    if !file_read_success {
+        return false, .[];
+    }
+
+    if palette_magic_value != 0x0C {
+        return false, .[];
+    }
+
+    palette_data_size := 768;
+    palette_data := NewArray(palette_data_size, u8);
+
+    file_read_success = file_read(file, palette_data.data, palette_data_size);
+    if !file_read_success {
+        array_free(palette_data);
+        return false, .[]; 
+    }
+
+    return true, palette_data;
+}
+
+PCXLoggerData :: struct {
+    prefix := "[PCX Loader]";
+    old_context_logger: (string, *void, Log_Info);
+    old_context_logger_data: *void;
+}
+
+pcx_logger :: (message: string, data: *void, info: Log_Info) {
+    pcx_logger_data := cast(*PCXLoggerData)data;
+    prefixed_message := tprint("% %", pcx_logger_data.prefix, message);
+    pcx_logger_data.old_context_logger(prefixed_message, pcx_logger_data.old_context_logger_data, info);
+}
+
+pcx_setup_logger :: () -> *PCXLoggerData {
+    pcx_logger_data := New(PCXLoggerData);
+    pcx_logger_data.old_context_logger = context.logger;
+    pcx_logger_data.old_context_logger_data = context.logger_data;
+
+    context.logger = pcx_logger;
+    context.logger_data = pcx_logger_data;
+
+    return pcx_logger_data;
+}
+
+pcx_cleanup_logger :: (pcx_logger_data: *PCXLoggerData) {
+    context.logger      = pcx_logger_data.old_context_logger;
+    context.logger_data = pcx_logger_data.old_context_logger_data;
+    free(pcx_logger_data);
+}
+
+#scope_export
+
+PCXImage :: struct {
+    data: *u8;
+    data_count: u64;
+    width: u64;
+    height: u64;
+};
+
+pcx_load :: (file: File, file_offset: int, file_size: int) -> PCXImage, bool {
+    pcx_logger_data := pcx_setup_logger();
+    defer pcx_cleanup_logger(pcx_logger_data);    
+
+    log("Testing my logger");
+    log("Testing it again");
+
+    pcx_header: PCXHeader;
+    
+    file_read_success := file_read(file, *pcx_header, size_of(PCXHeader));  
+    if !file_read_success {
+        return .{}, false; 
+    }
+
+    if !pcx_verify_header(pcx_header) {
         return .{}, false;
     }
 
@@ -89,38 +172,28 @@ load_pcx :: (file: File, file_offset: int, file_size: int) -> PCXImage, bool {
     texture_data_size : int = texture_width * texture_height;
 
     encoded_size := file_size - 128;
-    encoded_data := NewArray(xx encoded_size, u8);
+    encoded_data := NewArray(encoded_size, u8);
+    encoded_data_file_location := file_offset + 128; 
     defer array_free(encoded_data);
 
-    if !file_seek(file, xx file_offset + 128, .START) {
+    file_seek_success := file_seek(file, encoded_data_file_location, .START);
+    if !file_seek_success {
         return .{}, false; 
     }
 
-    if !file_read(file, encoded_data.data, encoded_size) {
+    file_read_success = file_read(file, encoded_data.data, encoded_size);
+    if !file_read_success {
         return .{}, false; 
     }
 
-    decoded_data := decode_rle(encoded_data, texture_data_size, pcx_header);
+    decoded_data := pcx_decode_rle(encoded_data, texture_data_size, pcx_header);
     defer array_free(decoded_data);
 
-    pallete_magic_value_offset := file_offset + file_size - 769;
-    if !file_seek(file, pallete_magic_value_offset, .START) {
-        return .{}, false; 
-    }
-    
-    palette_magic_value: u8;
-    if !file_read(file, *palette_magic_value, 1) {
+    palette_read_success, palette_data := pcx_read_palette(file, file_offset, file_size);
+    if !palette_read_success {
         return .{}, false;
     }
-
-    if palette_magic_value != 0x0C {
-        return .{}, false;
-    }
-
-    palette_data := cast(*u8) alloc(768);
-    if !file_read(file, palette_data, 768) {
-        return .{}, false; 
-    }
+    defer array_free(palette_data);
 
     pixel_count := cast(u64) texture_data_size * 3;
     pixels := cast(*u8) alloc(xx pixel_count);
