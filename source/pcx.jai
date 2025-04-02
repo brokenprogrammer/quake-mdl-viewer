@@ -25,6 +25,35 @@ PCXHeader :: struct {
     padding: [54]u8;
 };
 
+PCXLoggerData :: struct {
+    prefix := "[PCX Loader]";
+    old_context_logger: (string, *void, Log_Info);
+    old_context_logger_data: *void;
+}
+
+pcx_logger :: (message: string, data: *void, info: Log_Info) {
+    pcx_logger_data := cast(*PCXLoggerData)data;
+    prefixed_message := tprint("% %", pcx_logger_data.prefix, message);
+    pcx_logger_data.old_context_logger(prefixed_message, pcx_logger_data.old_context_logger_data, info);
+}
+
+pcx_setup_logger :: () -> *PCXLoggerData {
+    pcx_logger_data := New(PCXLoggerData);
+    pcx_logger_data.old_context_logger = context.logger;
+    pcx_logger_data.old_context_logger_data = context.logger_data;
+
+    context.logger = pcx_logger;
+    context.logger_data = pcx_logger_data;
+
+    return pcx_logger_data;
+}
+
+pcx_cleanup_logger :: (pcx_logger_data: *PCXLoggerData) {
+    context.logger      = pcx_logger_data.old_context_logger;
+    context.logger_data = pcx_logger_data.old_context_logger_data;
+    free(pcx_logger_data);
+}
+
 pcx_decode_rle :: (encoded_data: []u8, decoded_size: int, header: PCXHeader) -> []u8 {
     decoded_data := NewArray(decoded_size, u8);
     source := 0;
@@ -32,12 +61,12 @@ pcx_decode_rle :: (encoded_data: []u8, decoded_size: int, header: PCXHeader) -> 
 
     for 0..decoded_size - 1 {
         if source >= encoded_data.count {
-            print("PCX Warning: Unexpected end of encoded data at position %.\n", it);
+            log("Unexpected end of encoded data at position %.", it, flags=.WARNING);
             return decoded_data;
         }
         
         if dest >= decoded_size {
-            print("PCX Warning: Decoded data buffer overflow at position %.\n", it);
+            log("Decoded data buffer overflow at position %.", it, flags=.WARNING);
             return decoded_data;
         }
 
@@ -84,15 +113,18 @@ pcx_read_palette :: (file: File, file_offset: int, file_size: int) -> bool, []u8
 
     file_seek_success := file_seek(file, pallete_magic_value_file_location, .START);
     if !file_seek_success {
+        log("Failed to seek to palette section.", flags=.ERROR);
         return false, .[]; 
     }
     
     file_read_success := file_read(file, *palette_magic_value, 1);
     if !file_read_success {
+        log("Failed to read palette magic value.", flags=.ERROR);
         return false, .[];
     }
 
     if palette_magic_value != 0x0C {
+        log("Invalid palette magic value. Got: %, expected: %", palette_magic_value, 0x0C, flags=.ERROR);
         return false, .[];
     }
 
@@ -101,40 +133,12 @@ pcx_read_palette :: (file: File, file_offset: int, file_size: int) -> bool, []u8
 
     file_read_success = file_read(file, palette_data.data, palette_data_size);
     if !file_read_success {
+        log("Failed to read palette data section.", flags=.ERROR);
         array_free(palette_data);
         return false, .[]; 
     }
 
     return true, palette_data;
-}
-
-PCXLoggerData :: struct {
-    prefix := "[PCX Loader]";
-    old_context_logger: (string, *void, Log_Info);
-    old_context_logger_data: *void;
-}
-
-pcx_logger :: (message: string, data: *void, info: Log_Info) {
-    pcx_logger_data := cast(*PCXLoggerData)data;
-    prefixed_message := tprint("% %", pcx_logger_data.prefix, message);
-    pcx_logger_data.old_context_logger(prefixed_message, pcx_logger_data.old_context_logger_data, info);
-}
-
-pcx_setup_logger :: () -> *PCXLoggerData {
-    pcx_logger_data := New(PCXLoggerData);
-    pcx_logger_data.old_context_logger = context.logger;
-    pcx_logger_data.old_context_logger_data = context.logger_data;
-
-    context.logger = pcx_logger;
-    context.logger_data = pcx_logger_data;
-
-    return pcx_logger_data;
-}
-
-pcx_cleanup_logger :: (pcx_logger_data: *PCXLoggerData) {
-    context.logger      = pcx_logger_data.old_context_logger;
-    context.logger_data = pcx_logger_data.old_context_logger_data;
-    free(pcx_logger_data);
 }
 
 #scope_export
@@ -146,21 +150,25 @@ PCXImage :: struct {
     height: u64;
 };
 
-pcx_load :: (file: File, file_offset: int, file_size: int) -> PCXImage, bool {
+pcx_load :: (file: File, pcx_file_offset: int, pcx_file_size: int) -> PCXImage, bool {
     pcx_logger_data := pcx_setup_logger();
     defer pcx_cleanup_logger(pcx_logger_data);    
 
-    log("Testing my logger");
-    log("Testing it again");
+    file_seek_success := file_seek(file, pcx_file_offset, .START);
+    if !file_seek_success {
+        log("Failed to seek to file start location.", flags=.ERROR);
+        return .{}, false; 
+    }
 
-    pcx_header: PCXHeader;
-    
+    pcx_header: PCXHeader;    
     file_read_success := file_read(file, *pcx_header, size_of(PCXHeader));  
     if !file_read_success {
+        log("Failed to read header from file.", flags=.ERROR);
         return .{}, false; 
     }
 
     if !pcx_verify_header(pcx_header) {
+        log("Invalid header.", flags=.ERROR);
         return .{}, false;
     }
 
@@ -171,25 +179,27 @@ pcx_load :: (file: File, file_offset: int, file_size: int) -> PCXImage, bool {
     texture_height: int = pcx_header.height;
     texture_data_size : int = texture_width * texture_height;
 
-    encoded_size := file_size - 128;
+    encoded_size := pcx_file_size - 128;
     encoded_data := NewArray(encoded_size, u8);
-    encoded_data_file_location := file_offset + 128; 
+    encoded_data_file_location := pcx_file_offset + 128; 
     defer array_free(encoded_data);
 
-    file_seek_success := file_seek(file, encoded_data_file_location, .START);
+    file_seek_success = file_seek(file, encoded_data_file_location, .START);
     if !file_seek_success {
+        log("Failed to seek to encoded data section.", flags=.ERROR);
         return .{}, false; 
     }
 
     file_read_success = file_read(file, encoded_data.data, encoded_size);
     if !file_read_success {
+        log("Failed to read encoded data.", flags=.ERROR);
         return .{}, false; 
     }
 
     decoded_data := pcx_decode_rle(encoded_data, texture_data_size, pcx_header);
     defer array_free(decoded_data);
 
-    palette_read_success, palette_data := pcx_read_palette(file, file_offset, file_size);
+    palette_read_success, palette_data := pcx_read_palette(file, pcx_file_offset, pcx_file_size);
     if !palette_read_success {
         return .{}, false;
     }
