@@ -59,8 +59,14 @@ model_create_from_md2 :: (md2_model: MD2Model) -> Model {
     model.vertex_count = xx (md2_model.triangles.count * 3);
     model.skins = NewArray(md2_model.skins.count, Skin);
     for 0..model.skins.count - 1 {
-        skin_name := to_string(md2_model.skins[it].name.data, md2_model.skins[it].name.count);
-        model.skins[it].name = copy_string(trim(skin_name));
+        // TODO(Oskar): This causes some skins to have duplicate names, fix sometime..
+        skin_name := to_string(md2_model.skins[it].name.data);
+        found, left, right := split_from_right(skin_name, "/");
+        if !found {
+            model.skins[it].name = copy_string(trim(skin_name));
+        } else {
+            model.skins[it].name = copy_string(trim(right));
+        }
 
         model.skins[it].skin_width = xx md2_model.images[it].width;
         model.skins[it].skin_height = xx md2_model.images[it].height;

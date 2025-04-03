@@ -30,6 +30,8 @@ g_checkbox_font: *simp.Dynamic_Font;
 g_slider_font: *simp.Dynamic_Font;
 g_dropdown_font: *simp.Dynamic_Font;
 
+g_pak_files: []PakFile;
+g_model_file_names: [..]string;
 g_model: Model;
 
 Vector2_GLfloat :: struct {
@@ -59,8 +61,6 @@ Vector3_U8 :: struct {
 Vector3_U16 :: struct {
     x, y, z: u16;
 }
-
-mdl_file_names: [..]string;
 
 handle_window_event :: (event : Event)
 {
@@ -205,27 +205,30 @@ main :: () {
         print("Could not open pak file!\n");
         return;
     }
-    pak_files := load_pak(file);
 
-    color_palette := load_mdl_colorpalette(file, pak_files);
+    g_pak_files := load_pak(file);
+	defer array_free(g_pak_files);
+
+    color_palette := load_mdl_colorpalette(file, g_pak_files);
     defer free(color_palette.data);
 
     mdl_file_index := 0;
 
-    for pak_files {
+    for g_pak_files {
 		file_name := to_string(it.name.data);
-        if contains(file_name, mdl_file_names[mdl_file_index]) {
+        if contains(file_name, g_model_file_names[mdl_file_index]) {
 			if (ends_with(file_name, "mdl")) {
             	//g_model = load_mdl(file, it, color_palette);
+				break;
 			} else if ends_with(file_name, "md2") {
-				md2_model := load_md2(file, it, pak_files);
+				md2_model := load_md2(file, it, g_pak_files);
 				g_model = model_create_from_md2(md2_model);
 				md2_model_cleanup(md2_model);
+            	break;
 			}
-            break;
         }    
     }
-    g_params.mdl_names = mdl_file_names;
+    g_params.mdl_names = g_model_file_names;
     g_params.mdl_index = xx mdl_file_index;
 	g_params.mdl_index_last_frame = g_params.mdl_index;
 
@@ -260,7 +263,7 @@ main :: () {
 			handle_window_event (it);
         }
 
-        update_frame(delta_time, file, pak_files, color_palette);
+        update_frame(delta_time, file, g_pak_files, color_palette);
 
         time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
         angle: float = fmod_cycling(-180 + time * 360 / 5, 360);
@@ -334,20 +337,20 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
 					md2_model := load_md2(file, it, pak_files);
 					g_model = model_create_from_md2(md2_model);
 					md2_model_cleanup(md2_model);
+
+					array_free(g_params.animation_names);
+					g_params.animation_names = model_get_animation_names(g_model);
+					g_params.animation_index = 0;
+
+					array_free(g_params.skin_names);
+					g_params.skin_names = model_get_skin_names(g_model);
+					g_params.skin_index = 0;
+
+					g_params.mdl_index_last_frame = g_params.mdl_index;
+
+					update_buffers(g_model);
+					break;
 				}
-
-				array_free(g_params.animation_names);
-				g_params.animation_names = model_get_animation_names(g_model);
-				g_params.animation_index = 0;
-
-				array_free(g_params.skin_names);
-				g_params.skin_names = model_get_skin_names(g_model);
-				g_params.skin_index = 0;
-
-				g_params.mdl_index_last_frame = g_params.mdl_index;
-
-                update_buffers(g_model);
-                break;
             }    
         }
     }

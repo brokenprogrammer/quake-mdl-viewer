@@ -40,22 +40,41 @@ load_pak :: (file: File) -> [] PakFile {
         return .[];
     }
     
-    pak_files: [..]PakFile;
+    pak_files := NewArray(pak_file_count, PakFile);
     for 0..pak_file_count - 1 {
-        buffer := cast(*u8) alloc(size_of(PakFile));
-        success, bytes := file_read(file, buffer, size_of(PakFile));
+        success, bytes := file_read(file, *pak_files[it], size_of(PakFile));
         if !success {
             print("Failed to read pak file!\n");
             return .[];
         }
 
-        pak_file := cast(*PakFile)buffer;
-        if contains(to_string(pak_file.name.data), ".mdl") || contains(to_string(pak_file.name.data), ".md2") {
-            array_add(*mdl_file_names, copy_string(to_string(pak_file.name.data)));
+        if contains(to_string(pak_files[it].name.data), ".mdl") {
+            array_add(*g_model_file_names, copy_string(to_string(pak_files[it].name.data)));
         }
 
-        array_add(*pak_files, pak_file);
-        free(buffer);
+        if contains(to_string(pak_files[it].name.data), ".md2") {
+            // TODO(Oskar): better way of doing this? lol
+            name := copy_string(to_string(pak_files[it].name.data));
+            found, left, right := split_from_right(name, "/");
+            if !found {
+                array_add(*g_model_file_names, name);
+                continue;
+            }
+
+            found, left, right = split_from_left(left, "/");
+            if !found {
+                array_add(*g_model_file_names, name);
+                continue;
+            }
+
+            found, left, right = split_from_left(right, "/");
+            if !found {
+                array_add(*g_model_file_names, name);
+                continue;
+            }
+
+            array_add(*g_model_file_names, right);
+        }
     }
 
     print("Pak file successfully loaded.\n");
