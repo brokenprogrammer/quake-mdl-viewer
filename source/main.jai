@@ -218,7 +218,9 @@ main :: () {
 			if (ends_with(file_name, "mdl")) {
             	//g_model = load_mdl(file, it, color_palette);
 			} else if ends_with(file_name, "md2") {
-				g_model = load_md2(file, it, pak_files);
+				md2_model := load_md2(file, it, pak_files);
+				g_model = model_create_from_md2(md2_model);
+				md2_model_cleanup(md2_model);
 			}
             break;
         }    
@@ -227,8 +229,11 @@ main :: () {
     g_params.mdl_index = xx mdl_file_index;
 	g_params.mdl_index_last_frame = g_params.mdl_index;
 
-	g_params.frame_names = model_get_animation_names(g_model);
-	g_params.frame_index = 0;
+	g_params.animation_names = model_get_animation_names(g_model);
+	g_params.animation_index = 0;
+
+	g_params.skin_names = model_get_skin_names(g_model);
+	g_params.skin_index = 0;
 
     init_buffers(g_model);
 
@@ -262,8 +267,8 @@ main :: () {
 
         anim: float = g_params.animation_time;
         anim_lerp: float = fmod_cycling(anim, 1.0);
-        frame: int = cast(int)anim % g_model.animations[g_params.frame_index].frames.count;
-        frame_next: int = (frame + 1) % g_model.animations[g_params.frame_index].frames.count;
+        frame: int = cast(int)anim % g_model.animations[g_params.animation_index].frames.count;
+        frame_next: int = (frame + 1) % g_model.animations[g_params.animation_index].frames.count;
 
         glViewport(0, 0, xx g_current_window_width, xx g_current_window_height);
 
@@ -288,13 +293,13 @@ main :: () {
 			draw_line (xyz (-25, 0, xx i), xyz (25, 0, xx i), .{0.4, 0.4, 0.4, 1});
         }
 
-        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.rotate, angle, g_params.frame_index, cast(s32)g_params.shading_mode, g_params.show_normals);
+        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.rotate, angle, g_params.animation_index, g_params.skin_index, cast(s32)g_params.shading_mode, g_params.show_normals);
         
         update_ui (delta_time);
 
         simp.swap_buffers (g_window);
 
-		//report_memory_leaks();
+		// report_memory_leaks();
 
         frame_end := current_time_monotonic();
 		delta_time = cast (float) to_float64_seconds(frame_end - frame_start);
@@ -326,12 +331,18 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
 				if ends_with(file_name, "mdl") {
                 	//g_model = load_mdl(file, it, color_palette);
 				} else if ends_with(file_name, "md2") {
-					g_model = load_md2(file, it, pak_files);
+					md2_model := load_md2(file, it, pak_files);
+					g_model = model_create_from_md2(md2_model);
+					md2_model_cleanup(md2_model);
 				}
 
-				array_free(g_params.frame_names);
-				g_params.frame_names = model_get_animation_names(g_model);
-				g_params.frame_index = 0;
+				array_free(g_params.animation_names);
+				g_params.animation_names = model_get_animation_names(g_model);
+				g_params.animation_index = 0;
+
+				array_free(g_params.skin_names);
+				g_params.skin_names = model_get_skin_names(g_model);
+				g_params.skin_index = 0;
 
 				g_params.mdl_index_last_frame = g_params.mdl_index;
 
@@ -342,5 +353,5 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
     }
 
     g_params.animation_time += delta_time * g_params.animation_speed_in_fps;
-    g_params.animation_time = fmod_cycling(g_params.animation_time, xx g_model.animations[g_params.frame_index].frames.count);
+    g_params.animation_time = fmod_cycling(g_params.animation_time, xx g_model.animations[g_params.animation_index].frames.count);
 }

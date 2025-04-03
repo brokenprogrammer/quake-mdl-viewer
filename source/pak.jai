@@ -54,7 +54,7 @@ load_pak :: (file: File) -> [] PakFile {
             array_add(*mdl_file_names, copy_string(to_string(pak_file.name.data)));
         }
 
-        array_add(*pak_files, pak_file.*);
+        array_add(*pak_files, pak_file);
         free(buffer);
     }
 

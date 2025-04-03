@@ -334,7 +334,7 @@ update_buffers :: (mdl_model: Model) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[0].skin_width, mdl_model.skins[0].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[0].skin_data.data);
 }
 
-render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, shading_mode: s32, show_normals: bool) {
+render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool) {
     // glEnable(GL_CULL_FACE);
     // glEnable(GL_MULTISAMPLE);
     // glCullFace(GL_FRONT);
@@ -357,6 +357,10 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
     glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Texcoords);
     glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector2_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame].texcoords.data);
 
+    glBindTexture(GL_TEXTURE_2D, g_texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[skin_index].skin_width, mdl_model.skins[skin_index].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[skin_index].skin_data.data);
 
     r1: Quaternion;
     r2: Quaternion;

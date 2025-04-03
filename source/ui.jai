@@ -16,8 +16,10 @@ g_params : struct {
     mdl_index: s32;
 	mdl_index_last_frame: s32;
 	mdl_scroll_value: float;
-	frame_names: []string;
-	frame_index: s32;
+	animation_names: []string;
+	animation_index: s32;
+	skin_names: []string;
+	skin_index: s32;
 	animation_time := 0.0;
 	animation_speed_in_fps := 10.0;
 	rotate := false;
@@ -89,8 +91,23 @@ update_ui :: (delta_time: float) {
 		r.w = dropdown_width;
 		getrect.dropdown (
 			r,
-			frame_names,
-			*frame_index,
+			animation_names,
+			*animation_index,
+			*dropdown_theme
+		);
+	}
+	r.y -= pad;
+	// Skin selection
+	{
+		r.w = xx simp.prepare_text (g_font, "Skin: ");
+		getrect.label (r, "Skin: ", *label_theme);
+		r.x += dropdown_offset;
+		defer r.x -= dropdown_offset;
+		r.w = dropdown_width;
+		getrect.dropdown (
+			r,
+			skin_names,
+			*skin_index,
 			*dropdown_theme
 		);
 	}
@@ -102,10 +119,10 @@ update_ui :: (delta_time: float) {
 	}
 	r.y -= pad;
 
-	if g_model.animations[frame_index].frames.count > 1 {
+	if g_model.animations[animation_index].frames.count > 1 {
 		// Animation time slider
 		{
-			sample_count := g_model.animations[frame_index].frames.count / 1.0;
+			sample_count := g_model.animations[animation_index].frames.count / 1.0;
 			text := tprint ("Animation Time: %.00", sample_count);
 			r.w = w * 0.1 + xx simp.prepare_text (g_slider_font, text);
 			getrect.slider (r, *animation_time, 0.0, xx sample_count, 1.0, *slider_theme, "Animation Time: ", "");
