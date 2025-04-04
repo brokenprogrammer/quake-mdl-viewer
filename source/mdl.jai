@@ -45,37 +45,59 @@ MDLFrame :: struct {
     name: [16]u8;
 };
 
-MDLModelAnimation :: struct {
-    name: string;
-    frames: [..]MDLModelFrame;
+MDLFrameAndVertices :: struct {
+    frame: MDLFrame;
+    vertices: []MDLVertex;
 };
 
-MDLModelFrame :: struct {
-    vertices: []Vector3_GLfloat;
-    normals: []Vector3_GLfloat;
+MDLImage :: struct {
+    data: []u8;
+    width: int;
+    height: int;
 };
 
 MDLModel :: struct {
-    texture_width: u32;
-    texture_height: u32;
-    texture_data: []u8;
+    images: []MDLImage;
 
-    texture_coordinates: []Vector2_GLfloat;
-    indices: []Vector3_GLuint;              // Known as triangles before, vertex indices that forms triangles.
-    vertex_count: u32;
-    animations: [..]MDLModelAnimation;
+    scale: Vector3_Float32;
+    translate: Vector3_Float32;
+
+    texcoords: []MDLTexcoord;
+    triangles: []MDLTriangle;
+    frames: []MDLFrameAndVertices;
 };
 
-mdl_get_animation_names :: (mdl_model: MDLModel) -> []string {
-    names: [..]string;
-    array_reserve(*names, mdl_model.animations.count);
+// MDLModelAnimation :: struct {
+//     name: string;
+//     frames: [..]MDLModelFrame;
+// };
 
-    for 0..mdl_model.animations.count - 1 {
-        array_add(*names, mdl_model.animations[it].name);
-    }
+// MDLModelFrame :: struct {
+//     vertices: []Vector3_GLfloat;
+//     normals: []Vector3_GLfloat;
+// };
 
-    return names;
-}
+// MDLModel :: struct {
+//     texture_width: u32;
+//     texture_height: u32;
+//     texture_data: []u8;
+
+//     texture_coordinates: []Vector2_GLfloat;
+//     indices: []Vector3_GLuint;              // Known as triangles before, vertex indices that forms triangles.
+//     vertex_count: u32;
+//     animations: [..]MDLModelAnimation;
+// };
+
+// mdl_get_animation_names :: (mdl_model: MDLModel) -> []string {
+//     names: [..]string;
+//     array_reserve(*names, mdl_model.animations.count);
+
+//     for 0..mdl_model.animations.count - 1 {
+//         array_add(*names, mdl_model.animations[it].name);
+//     }
+
+//     return names;
+// }
 
 load_mdl_colorpalette :: (file: File, pak_files: []PakFile) -> []Vector3_U8 {
     for pak_files {
@@ -129,8 +151,10 @@ load_mdl_header :: (file: File, pak_file: PakFile) -> bool, MDLHeader {
     return true, mdl_header;
 }
 
-load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, mdl_model : *MDLModel, color_palette: []Vector3_U8) {
-    for 0..mdl_header.tex_count - 1 {
+load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, color_palette: []Vector3_U8) -> []MDLImage {
+    images := NewArray(mdl_header.tex_count, MDLImage);
+
+    for imade_index: 0..mdl_header.tex_count - 1 {
         group: u32;
         file_read(file, *group, size_of(u32));
 
@@ -140,62 +164,74 @@ load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, mdl_model : *MDLMod
         defer free(texture_buffer);
         file_read(file, texture_buffer, texture_data_size);
 
-        // TODO(Oskar): Cleanup on model unload.
-        mdl_model.texture_data = NewArray(texture_data_size * texture_number_of_channels, u8);
+        // // TODO(Oskar): Cleanup on model unload.
+        images[imade_index].data = NewArray(texture_data_size * texture_number_of_channels, u8);
         for 0..texture_data_size - 1 {
             palette_index := texture_buffer[it];
             
-            mdl_model.texture_data[texture_number_of_channels * it + 0] = color_palette[palette_index].x;
-            mdl_model.texture_data[texture_number_of_channels * it + 1] = color_palette[palette_index].y;
-            mdl_model.texture_data[texture_number_of_channels * it + 2] = color_palette[palette_index].z;
+            images[imade_index].data[texture_number_of_channels * it + 0] = color_palette[palette_index].x;
+            images[imade_index].data[texture_number_of_channels * it + 1] = color_palette[palette_index].y;
+            images[imade_index].data[texture_number_of_channels * it + 2] = color_palette[palette_index].z;
         }
 
-        mdl_model.texture_width = mdl_header.tex_width;
-        mdl_model.texture_height = mdl_header.tex_height;
+        images[imade_index].width = mdl_header.tex_width;
+        images[imade_index].height = mdl_header.tex_height;
     }
+
+    return images;
 }
 
-load_mdl_texcoords :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
-    mdl_texcoord: [MAX_VERTEX_COUNT]MDLTexcoord;
-    file_read(file, *mdl_texcoord, size_of(MDLTexcoord)*mdl_header.vertex_count);
+load_mdl_texcoords :: (file: File, mdl_header: MDLHeader) -> []MDLTexcoord {
+    // mdl_texcoord: [MAX_VERTEX_COUNT]MDLTexcoord;
+    texcoords := NewArray(mdl_header.vertex_count, MDLTexcoord);
+    file_read(file, texcoords.data, size_of(MDLTexcoord) * mdl_header.vertex_count);
+
+    return texcoords;
+
+    // TODO(Oskar): Move this code into model_create_from_mdl
 
     // TODO(Oskar): Cleanup on model unload.
-    mdl_model.texture_coordinates = NewArray(mdl_header.vertex_count * 2, Vector2_GLfloat);
-    for 0..mdl_header.vertex_count - 1 {
-        s := mdl_texcoord[it].s + 0.5;
-        t := mdl_texcoord[it].t + 0.5;
+    // mdl_model.texture_coordinates = NewArray(mdl_header.vertex_count * 2, Vector2_GLfloat);
+    // for 0..mdl_header.vertex_count - 1 {
+    //     s := mdl_texcoord[it].s + 0.5;
+    //     t := mdl_texcoord[it].t + 0.5;
         
-        mdl_model.texture_coordinates[it].x = s / mdl_header.tex_width;
-        mdl_model.texture_coordinates[it].y = t / mdl_header.tex_height;
+    //     mdl_model.texture_coordinates[it].x = s / mdl_header.tex_width;
+    //     mdl_model.texture_coordinates[it].y = t / mdl_header.tex_height;
 
-        a := ifx mdl_texcoord[it].seam 0.5 else 0.0;
-        mdl_model.texture_coordinates[it + mdl_header.vertex_count].x = (s + mdl_header.tex_width * (a)) / mdl_header.tex_width;
-        mdl_model.texture_coordinates[it + mdl_header.vertex_count].y = t / mdl_header.tex_height;        
-    }
+    //     a := ifx mdl_texcoord[it].seam 0.5 else 0.0;
+    //     mdl_model.texture_coordinates[it + mdl_header.vertex_count].x = (s + mdl_header.tex_width * (a)) / mdl_header.tex_width;
+    //     mdl_model.texture_coordinates[it + mdl_header.vertex_count].y = t / mdl_header.tex_height;        
+    // }
 }
 
-load_mdl_triangles :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
-    mdl_triangles: [MAX_TRIANGLE_COUNT]MDLTriangle;
-    file_read(file, *mdl_triangles, size_of(MDLTriangle)*mdl_header.triangle_count);
+load_mdl_triangles :: (file: File, mdl_header: MDLHeader) -> []MDLTriangle {
+    // mdl_triangles: [MAX_TRIANGLE_COUNT]MDLTriangle;
+    triangles := NewArray(mdl_header.triangle_count, MDLTriangle);
+    file_read(file, triangles.data, size_of(MDLTriangle)*mdl_header.triangle_count);
     
+    return triangles;
+
     // TODO(Oskar): Cleanup on model unload.
-    mdl_model.indices = NewArray(mdl_header.triangle_count, Vector3_GLuint);
-    for 0..mdl_header.triangle_count - 1 {
-        mdl_model.indices[it].x = mdl_triangles[it].vertex.x + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
-        mdl_model.indices[it].y = mdl_triangles[it].vertex.y + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
-        mdl_model.indices[it].z = mdl_triangles[it].vertex.z + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
-    }
+    // mdl_model.indices = NewArray(mdl_header.triangle_count, Vector3_GLuint);
+    // for 0..mdl_header.triangle_count - 1 {
+    //     mdl_model.indices[it].x = mdl_triangles[it].vertex.x + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
+    //     mdl_model.indices[it].y = mdl_triangles[it].vertex.y + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
+    //     mdl_model.indices[it].z = mdl_triangles[it].vertex.z + (ifx mdl_triangles[it].frontface 0 else mdl_header.vertex_count);
+    // }
+
 }
 
-load_mdl_vertices :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
-    model_frames : [..]MDLModelFrame;
-    model_names : [..]string;
+load_mdl_vertices :: (file: File, mdl_header: MDLHeader) ->[]MDLFrameAndVertices {
+    // model_frames : [..]MDLModelFrame;
+    // model_names : [..]string;
 
+    frames := NewArray(mdl_header.frame_count, MDLFrameAndVertices);
     for frame: 0..mdl_header.frame_count - 1 {
-        mdl_model_frame : MDLModelFrame;
-        // TODO(Oskar): Cleanup on model unload.
-        mdl_model_frame.vertices = NewArray(mdl_header.vertex_count * 2, Vector3_GLfloat);
-        mdl_model_frame.normals = NewArray(mdl_header.vertex_count * 2, Vector3_GLfloat);
+        // mdl_model_frame : MDLModelFrame;
+        // // TODO(Oskar): Cleanup on model unload.
+        // mdl_model_frame.vertices = NewArray(mdl_header.vertex_count * 2, Vector3_GLfloat);
+        // mdl_model_frame.normals = NewArray(mdl_header.vertex_count * 2, Vector3_GLfloat);
         
         group: u32;
         file_read(file, *group, size_of(u32));
@@ -203,66 +239,72 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader, mdl_model: *MDLModel) {
         mdl_frame: MDLFrame;
         file_read(file, *mdl_frame, size_of(MDLFrame));
 
-        model_frame_name := to_string(mdl_frame.name.data);
-        model_frame_name = trim_right(model_frame_name, "0123456789");
+        // model_frame_name := to_string(mdl_frame.name.data);
+        // model_frame_name = trim_right(model_frame_name, "0123456789");
 
-        vertices: [MAX_VERTEX_COUNT]MDLVertex;
-        file_read(file, *vertices, size_of(MDLVertex)*mdl_header.vertex_count);
+        // vertices: [MAX_VERTEX_COUNT]MDLVertex;
+        vertices := NewArray(mdl_header.vertex_count, MDLVertex);
+        file_read(file, vertices.data, size_of(MDLVertex)*mdl_header.vertex_count);
 
-        for k: 0..mdl_header.vertex_count - 1 {
-            // Front
-            mdl_model_frame.vertices[k].x = mdl_header.scale.x * vertices[k].pos.x + mdl_header.translate.x;
-            mdl_model_frame.vertices[k].y = mdl_header.scale.y * vertices[k].pos.y + mdl_header.translate.y;
-            mdl_model_frame.vertices[k].z = mdl_header.scale.z * vertices[k].pos.z + mdl_header.translate.z;
+        frames[frame].frame = mdl_frame;
+        frames[frame].vertices = vertices;
 
-            // Back
-            mdl_model_frame.vertices[k + mdl_header.vertex_count].x = mdl_model_frame.vertices[k].x; 
-            mdl_model_frame.vertices[k + mdl_header.vertex_count].y = mdl_model_frame.vertices[k].y; 
-            mdl_model_frame.vertices[k + mdl_header.vertex_count].z = mdl_model_frame.vertices[k].z; 
+        // for k: 0..mdl_header.vertex_count - 1 {
+        //     // Front
+        //     mdl_model_frame.vertices[k].x = mdl_header.scale.x * vertices[k].pos.x + mdl_header.translate.x;
+        //     mdl_model_frame.vertices[k].y = mdl_header.scale.y * vertices[k].pos.y + mdl_header.translate.y;
+        //     mdl_model_frame.vertices[k].z = mdl_header.scale.z * vertices[k].pos.z + mdl_header.translate.z;
 
-            // Front, added wraparound because some models seems to have indexes out of boudns..
-            mdl_model_frame.normals[k].x = anorms_table[vertices[k].normal_index % 162].x;
-            mdl_model_frame.normals[k].y = anorms_table[vertices[k].normal_index % 162].y;
-            mdl_model_frame.normals[k].z = anorms_table[vertices[k].normal_index % 162].z;
+        //     // Back
+        //     mdl_model_frame.vertices[k + mdl_header.vertex_count].x = mdl_model_frame.vertices[k].x; 
+        //     mdl_model_frame.vertices[k + mdl_header.vertex_count].y = mdl_model_frame.vertices[k].y; 
+        //     mdl_model_frame.vertices[k + mdl_header.vertex_count].z = mdl_model_frame.vertices[k].z; 
 
-            // Back
-            mdl_model_frame.normals[k + mdl_header.vertex_count].x = mdl_model_frame.normals[k].x;
-            mdl_model_frame.normals[k + mdl_header.vertex_count].y = mdl_model_frame.normals[k].y;
-            mdl_model_frame.normals[k + mdl_header.vertex_count].z = mdl_model_frame.normals[k].z;
-        }
+        //     // Front, added wraparound because some models seems to have indexes out of boudns..
+        //     mdl_model_frame.normals[k].x = anorms_table[vertices[k].normal_index % 162].x;
+        //     mdl_model_frame.normals[k].y = anorms_table[vertices[k].normal_index % 162].y;
+        //     mdl_model_frame.normals[k].z = anorms_table[vertices[k].normal_index % 162].z;
+
+        //     // Back
+        //     mdl_model_frame.normals[k + mdl_header.vertex_count].x = mdl_model_frame.normals[k].x;
+        //     mdl_model_frame.normals[k + mdl_header.vertex_count].y = mdl_model_frame.normals[k].y;
+        //     mdl_model_frame.normals[k + mdl_header.vertex_count].z = mdl_model_frame.normals[k].z;
+        // }
 
         // TODO(Oskar): Cleanup on model unload?
-        array_add(*model_frames, mdl_model_frame);
+        // array_add(*model_frames, mdl_model_frame);
         // TODO(Oskar): can we just copy the string somehow and not use sprint?
-        array_add(*model_names, sprint("%", model_frame_name));
+        // array_add(*model_names, sprint("%", model_frame_name));
         // array_add(*mdl_model.frames, mdl_model_frame); // TODO(Oskar): This is to be removed.
     }
 
-    for 0..model_frames.count - 1 {
-        name := model_names[it];
+    return frames;
 
-        animation_does_exist := false;
-        animation_index := -1;
+    // for 0..model_frames.count - 1 {
+    //     name := model_names[it];
 
-        for 0..mdl_model.animations.count - 1 {
-            if equal(mdl_model.animations[it].name, name) {
-                animation_does_exist = true;
-                animation_index = it;
-                break;
-            }
-        }
+    //     animation_does_exist := false;
+    //     animation_index := -1;
 
-        if animation_does_exist {
-            array_add(*mdl_model.animations[animation_index].frames, model_frames[it]);
-        }
-        else
-        {
-            animation: MDLModelAnimation;
-            animation.name = name;
-            array_add(*animation.frames, model_frames[it]);
-            array_add(*mdl_model.animations, animation);
-        }
-    }
+    //     for 0..mdl_model.animations.count - 1 {
+    //         if equal(mdl_model.animations[it].name, name) {
+    //             animation_does_exist = true;
+    //             animation_index = it;
+    //             break;
+    //         }
+    //     }
+
+    //     if animation_does_exist {
+    //         array_add(*mdl_model.animations[animation_index].frames, model_frames[it]);
+    //     }
+    // äs    else
+    //     {
+    //         animation: MDLModelAnimation;
+    //         animation.name = name;
+    //         array_add(*animation.frames, model_frames[it]);
+    //         array_add(*mdl_model.animations, animation);
+    //     }
+    // }
 }
 
 // TODO(Oskar): result error handling, return false if failiure to load properly.
@@ -276,12 +318,16 @@ load_mdl :: (file: File, pak_file: PakFile, color_palette: []Vector3_U8) -> MDLM
         return mdl_model;
     }
 
-    mdl_model.vertex_count = mdl_header.vertex_count * 2;
+    // mdl_model.vertex_count = mdl_header.vertex_count * 2;
 
-    load_mdl_texture_data(file, mdl_header, *mdl_model, color_palette);
-    load_mdl_texcoords(file, mdl_header, *mdl_model);
-    load_mdl_triangles(file, mdl_header, *mdl_model);
-    load_mdl_vertices(file, mdl_header, *mdl_model);
+    mdl_model.images = load_mdl_texture_data(file, mdl_header, color_palette);
+
+    mdl_model.scale = mdl_header.scale;
+    mdl_model.translate = mdl_header.translate;
+
+    mdl_model.texcoords = load_mdl_texcoords(file, mdl_header);
+    mdl_model.triangles = load_mdl_triangles(file, mdl_header);
+    mdl_model.frames = load_mdl_vertices(file, mdl_header);
 
     return mdl_model;
 }

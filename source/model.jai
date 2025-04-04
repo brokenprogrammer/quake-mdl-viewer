@@ -53,6 +53,82 @@ model_get_skin_names :: (model: Model) -> []string {
     return names;
 }
 
+model_create_from_mdl :: (mdl_model: MDLModel) -> Model {
+    model: Model;
+    
+    model.vertex_count = xx (mdl_model.triangles.count * 3);
+    model.skins = NewArray(mdl_model.images.count, Skin);
+    for 0..model.skins.count - 1 {
+        model.skins[it].skin_width = xx mdl_model.images[it].width;
+        model.skins[it].skin_height = xx mdl_model.images[it].height;
+        model.skins[it].skin_data.data = xx mdl_model.images[it].data.data;
+        model.skins[it].skin_data.count = xx mdl_model.images[it].data.count;
+    }
+
+    for frame: mdl_model.frames {
+        frame_name := to_string(frame.frame.name.data);
+        frame_name = copy_string(trim_right(frame_name, "0123456789"));
+
+        animation_frame: AnimationFrame;
+        animation_frame.vertices = NewArray(model.vertex_count, Vector3_GLfloat);
+        animation_frame.normals = NewArray(model.vertex_count, Vector3_GLfloat);
+        animation_frame.texcoords = NewArray(model.vertex_count, Vector2_GLfloat);
+
+        data_pointer_index := 0;
+        for mdl_triangle: mdl_model.triangles {
+            triangles: [3]GLuint;
+            triangles[0] = mdl_triangle.vertex.x;// + cast(u32) (ifx mdl_triangle.frontface 0 else frame.vertices.count);
+            triangles[1] = mdl_triangle.vertex.y;// + cast(u32) (ifx mdl_triangle.frontface 0 else frame.vertices.count);
+            triangles[2] = mdl_triangle.vertex.z;// + cast(u32) (ifx mdl_triangle.frontface 0 else frame.vertices.count);
+
+            for triangle: triangles {
+                vert0 := mdl_model.scale.x * frame.vertices[triangle].pos.x + mdl_model.translate.x;
+                vert1 := mdl_model.scale.y * frame.vertices[triangle].pos.y + mdl_model.translate.y;
+                vert2 := mdl_model.scale.z * frame.vertices[triangle].pos.z + mdl_model.translate.z;
+
+                norm0 := anorms_table[frame.vertices[triangle].normal_index % 162].x;
+                norm1 := anorms_table[frame.vertices[triangle].normal_index % 162].y;
+                norm2 := anorms_table[frame.vertices[triangle].normal_index % 162].z;
+
+                seam := 0.0;
+                if mdl_model.texcoords[triangle].seam {
+                    seam = 0.5;
+                }
+
+                tex0 := cast(GLfloat) mdl_model.texcoords[triangle].s / mdl_model.images[0].width;
+                tex1 := cast(GLfloat) mdl_model.texcoords[triangle].t / mdl_model.images[0].height;
+
+                animation_frame.vertices[data_pointer_index] = Vector3_GLfloat.{ vert0, vert1, vert2 };
+                animation_frame.normals[data_pointer_index] = Vector3_GLfloat.{ norm0, norm1, norm2 };
+                animation_frame.texcoords[data_pointer_index] = Vector2_GLfloat.{ tex0, tex1 };
+                data_pointer_index += 1;
+            }
+        }
+
+        // Place animation frame in the correct animation
+        animation_does_exist := false;
+        animation_index := -1;
+        for 0..model.animations.count - 1 {
+            if equal(model.animations[it].name, frame_name) {
+                animation_does_exist = true;
+                animation_index = it;
+                break;
+            }
+        }
+
+        if animation_does_exist {
+            array_add(*model.animations[animation_index].frames, animation_frame);
+        } else {
+            animation: Animation;
+            animation.name = frame_name;
+            array_add(*animation.frames, animation_frame);
+            array_add(*model.animations, animation);
+        }
+    }
+
+    return model;
+}
+
 model_create_from_md2 :: (md2_model: MD2Model) -> Model {
     model: Model;
 

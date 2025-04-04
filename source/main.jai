@@ -199,8 +199,8 @@ main :: () {
     getrect.ui_init ();
 	init_fonts ();
 
-    // file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
-	file, file_success := file_open("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake 2\\baseq2\\pak0.pak");
+    file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
+	// file, file_success := file_open("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake 2\\baseq2\\pak0.pak");
     if !file_success {
         print("Could not open pak file!\n");
         return;
@@ -218,7 +218,8 @@ main :: () {
 		file_name := to_string(it.name.data);
         if contains(file_name, g_model_file_names[mdl_file_index]) {
 			if (ends_with(file_name, "mdl")) {
-            	//g_model = load_mdl(file, it, color_palette);
+				mdl_model := load_mdl(file, it, color_palette); 
+            	g_model = model_create_from_mdl(mdl_model);
 				break;
 			} else if ends_with(file_name, "md2") {
 				md2_model := load_md2(file, it, g_pak_files);
@@ -228,6 +229,7 @@ main :: () {
 			}
         }    
     }
+
     g_params.mdl_names = g_model_file_names;
     g_params.mdl_index = xx mdl_file_index;
 	g_params.mdl_index_last_frame = g_params.mdl_index;
@@ -332,7 +334,21 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
 			file_name := to_string(it.name.data);
             if contains(file_name, g_params.mdl_names[g_params.mdl_index]) {
 				if ends_with(file_name, "mdl") {
+					mdl_model := load_mdl(file, it, color_palette); 
+					g_model = model_create_from_mdl(mdl_model);
                 	//g_model = load_mdl(file, it, color_palette);
+
+					array_free(g_params.animation_names);
+					g_params.animation_names = model_get_animation_names(g_model);
+					g_params.animation_index = 0;
+
+					array_free(g_params.skin_names);
+					g_params.skin_names = model_get_skin_names(g_model);
+					g_params.skin_index = 0;
+
+					g_params.mdl_index_last_frame = g_params.mdl_index;
+
+					update_buffers(g_model);
 				} else if ends_with(file_name, "md2") {
 					md2_model := load_md2(file, it, pak_files);
 					g_model = model_create_from_md2(md2_model);

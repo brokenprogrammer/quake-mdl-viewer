@@ -41,6 +41,8 @@ load_pak :: (file: File) -> [] PakFile {
     }
     
     pak_files := NewArray(pak_file_count, PakFile);
+    this_allocation_is_not_a_leak(pak_files.data);
+
     for 0..pak_file_count - 1 {
         success, bytes := file_read(file, *pak_files[it], size_of(PakFile));
         if !success {
@@ -48,13 +50,17 @@ load_pak :: (file: File) -> [] PakFile {
             return .[];
         }
 
-        if contains(to_string(pak_files[it].name.data), ".mdl") {
-            array_add(*g_model_file_names, copy_string(to_string(pak_files[it].name.data)));
+        pak_file_name := to_string(pak_files[it].name.data);
+
+        if contains(pak_file_name, ".mdl") {
+            array_add(*g_model_file_names, copy_string(pak_file_name));
         }
 
-        if contains(to_string(pak_files[it].name.data), ".md2") {
+        if contains(pak_file_name, ".md2") {
             // TODO(Oskar): better way of doing this? lol
-            name := copy_string(to_string(pak_files[it].name.data));
+            name := copy_string(pak_file_name);
+            defer free(name);
+
             found, left, right := split_from_right(name, "/");
             if !found {
                 array_add(*g_model_file_names, name);
