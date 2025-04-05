@@ -59,6 +59,7 @@ model_create_from_mdl :: (mdl_model: MDLModel) -> Model {
     model.vertex_count = xx (mdl_model.triangles.count * 3);
     model.skins = NewArray(mdl_model.images.count, Skin);
     for 0..model.skins.count - 1 {
+        model.skins[it].name = copy_string(mdl_model.images[it].name);
         model.skins[it].skin_width = xx mdl_model.images[it].width;
         model.skins[it].skin_height = xx mdl_model.images[it].height;
         model.skins[it].skin_data.data = xx mdl_model.images[it].data.data;

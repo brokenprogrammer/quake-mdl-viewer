@@ -51,6 +51,7 @@ MDLFrameAndVertices :: struct {
 };
 
 MDLImage :: struct {
+    name: string;
     data: []u8;
     width: int;
     height: int;
@@ -174,6 +175,7 @@ load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, color_palette: []Ve
             images[imade_index].data[texture_number_of_channels * it + 2] = color_palette[palette_index].z;
         }
 
+        images[imade_index].name = tprint("Skin %", imade_index);
         images[imade_index].width = mdl_header.tex_width;
         images[imade_index].height = mdl_header.tex_height;
     }
