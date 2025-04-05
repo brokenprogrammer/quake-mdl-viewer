@@ -335,9 +335,9 @@ update_buffers :: (mdl_model: Model) {
 }
 
 render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool) {
-    // glEnable(GL_CULL_FACE);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
     // glEnable(GL_MULTISAMPLE);
-    // glCullFace(GL_FRONT);
     // glFrontFace(GL_CCW);
 
     glUseProgram(g_shader);
@@ -478,7 +478,8 @@ void main() {
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
 
-    vec4 result = vec4(ambient + diffuse, 1.0) * objectColor;
+    //vec4(ambient + diffuse, 1.0) *
+    vec4 result = objectColor;
     FragColor = result;
 }
 GLSL

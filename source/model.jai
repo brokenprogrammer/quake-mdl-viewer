@@ -76,10 +76,11 @@ model_create_from_mdl :: (mdl_model: MDLModel) -> Model {
 
         data_pointer_index := 0;
         for mdl_triangle: mdl_model.triangles {
+            is_front_face_triangle := mdl_triangle.frontface;
             triangles: [3]GLuint;
-            triangles[0] = mdl_triangle.vertex.x;// + cast(u32) (ifx mdl_triangle.frontface 0 else frame.vertices.count);
-            triangles[1] = mdl_triangle.vertex.y;// + cast(u32) (ifx mdl_triangle.frontface 0 else frame.vertices.count);
-            triangles[2] = mdl_triangle.vertex.z;// + cast(u32) (ifx mdl_triangle.frontface 0 else frame.vertices.count);
+            triangles[0] = mdl_triangle.vertex.x;
+            triangles[1] = mdl_triangle.vertex.y;
+            triangles[2] = mdl_triangle.vertex.z;
 
             for triangle: triangles {
                 vert0 := mdl_model.scale.x * frame.vertices[triangle].pos.x + mdl_model.translate.x;
@@ -90,13 +91,15 @@ model_create_from_mdl :: (mdl_model: MDLModel) -> Model {
                 norm1 := anorms_table[frame.vertices[triangle].normal_index % 162].y;
                 norm2 := anorms_table[frame.vertices[triangle].normal_index % 162].z;
 
-                seam := 0.0;
-                if mdl_model.texcoords[triangle].seam {
-                    seam = 0.5;
-                }
+                is_uv_seam := mdl_model.texcoords[triangle].seam;
+                is_uv_offset := !is_front_face_triangle && is_uv_seam;
 
-                tex0 := cast(GLfloat) mdl_model.texcoords[triangle].s / mdl_model.images[0].width;
-                tex1 := cast(GLfloat) mdl_model.texcoords[triangle].t / mdl_model.images[0].height;
+                s_offset := ifx is_uv_offset 0.5 else 0.0;
+                s := cast(GLfloat)mdl_model.texcoords[triangle].s / cast(GLfloat)mdl_model.images[0].width;
+                t := cast(GLfloat)mdl_model.texcoords[triangle].t / cast(GLfloat)mdl_model.images[0].height;
+
+                tex0 := s_offset + s;
+                tex1 := t;
 
                 animation_frame.vertices[data_pointer_index] = Vector3_GLfloat.{ vert0, vert1, vert2 };
                 animation_frame.normals[data_pointer_index] = Vector3_GLfloat.{ norm0, norm1, norm2 };
