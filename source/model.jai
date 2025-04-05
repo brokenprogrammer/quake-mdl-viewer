@@ -95,8 +95,8 @@ model_create_from_mdl :: (mdl_model: MDLModel) -> Model {
                 is_uv_offset := !is_front_face_triangle && is_uv_seam;
 
                 s_offset := ifx is_uv_offset 0.5 else 0.0;
-                s := cast(GLfloat)mdl_model.texcoords[triangle].s / cast(GLfloat)mdl_model.images[0].width;
-                t := cast(GLfloat)mdl_model.texcoords[triangle].t / cast(GLfloat)mdl_model.images[0].height;
+                s := cast(GLfloat) (mdl_model.texcoords[triangle].s + 0.5) / cast(GLfloat)mdl_model.images[0].width;
+                t := cast(GLfloat) (mdl_model.texcoords[triangle].t + 0.5) / cast(GLfloat)mdl_model.images[0].height;
 
                 tex0 := s_offset + s;
                 tex1 := t;

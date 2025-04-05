@@ -335,8 +335,8 @@ update_buffers :: (mdl_model: Model) {
 }
 
 render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool) {
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_FRONT);
+    // glEnable(GL_CULL_FACE);
+    // glCullFace(GL_FRONT);
     // glEnable(GL_MULTISAMPLE);
     // glFrontFace(GL_CCW);
 
