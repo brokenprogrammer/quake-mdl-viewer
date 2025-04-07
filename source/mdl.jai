@@ -121,16 +121,16 @@ load_mdl_colorpalette :: (file: File, pak_files: []PakFile) -> []Vector3_U8 {
     return .[];
 }
 
-load_mdl_header :: (file: File, pak_file: PakFile) -> bool, MDLHeader {
+load_mdl_header :: (pak_file: PakFile) -> bool, MDLHeader {
     mdl_header: MDLHeader;
 
-    seek_success := file_seek(file, pak_file.offset, .START);
+    seek_success := file_seek(pak_file.file, pak_file.offset, .START);
     if !seek_success {
         print("Failed to seek to mdl header offset\n");
         return false, mdl_header;
     }
 
-    read_success := file_read(file, *mdl_header, size_of(MDLHeader));
+    read_success := file_read(pak_file.file, *mdl_header, size_of(MDLHeader));
     if !read_success {
         print("Failed to read mdl header!\n");
         return false, mdl_header;
@@ -152,18 +152,18 @@ load_mdl_header :: (file: File, pak_file: PakFile) -> bool, MDLHeader {
     return true, mdl_header;
 }
 
-load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, color_palette: []Vector3_U8) -> []MDLImage {
+load_mdl_texture_data :: (pak_file: PakFile, mdl_header: MDLHeader, color_palette: []Vector3_U8) -> []MDLImage {
     images := NewArray(mdl_header.tex_count, MDLImage);
 
     for imade_index: 0..mdl_header.tex_count - 1 {
         group: u32;
-        file_read(file, *group, size_of(u32));
+        file_read(pak_file.file, *group, size_of(u32));
 
         texture_number_of_channels := 3;
         texture_data_size := mdl_header.tex_width * mdl_header.tex_height; 
         texture_buffer := cast(*u8) alloc(texture_data_size);
         defer free(texture_buffer);
-        file_read(file, texture_buffer, texture_data_size);
+        file_read(pak_file.file, texture_buffer, texture_data_size);
 
         // // TODO(Oskar): Cleanup on model unload.
         images[imade_index].data = NewArray(texture_data_size * texture_number_of_channels, u8);
@@ -183,10 +183,10 @@ load_mdl_texture_data :: (file: File, mdl_header: MDLHeader, color_palette: []Ve
     return images;
 }
 
-load_mdl_texcoords :: (file: File, mdl_header: MDLHeader) -> []MDLTexcoord {
+load_mdl_texcoords :: (pak_file: PakFile, mdl_header: MDLHeader) -> []MDLTexcoord {
     // mdl_texcoord: [MAX_VERTEX_COUNT]MDLTexcoord;
     texcoords := NewArray(mdl_header.vertex_count, MDLTexcoord);
-    file_read(file, texcoords.data, size_of(MDLTexcoord) * mdl_header.vertex_count);
+    file_read(pak_file.file, texcoords.data, size_of(MDLTexcoord) * mdl_header.vertex_count);
 
     return texcoords;
 
@@ -207,10 +207,10 @@ load_mdl_texcoords :: (file: File, mdl_header: MDLHeader) -> []MDLTexcoord {
     // }
 }
 
-load_mdl_triangles :: (file: File, mdl_header: MDLHeader) -> []MDLTriangle {
+load_mdl_triangles :: (pak_file: PakFile, mdl_header: MDLHeader) -> []MDLTriangle {
     // mdl_triangles: [MAX_TRIANGLE_COUNT]MDLTriangle;
     triangles := NewArray(mdl_header.triangle_count, MDLTriangle);
-    file_read(file, triangles.data, size_of(MDLTriangle)*mdl_header.triangle_count);
+    file_read(pak_file.file, triangles.data, size_of(MDLTriangle)*mdl_header.triangle_count);
     
     return triangles;
 
@@ -224,7 +224,7 @@ load_mdl_triangles :: (file: File, mdl_header: MDLHeader) -> []MDLTriangle {
 
 }
 
-load_mdl_vertices :: (file: File, mdl_header: MDLHeader) ->[]MDLFrameAndVertices {
+load_mdl_vertices :: (pak_file: PakFile, mdl_header: MDLHeader) ->[]MDLFrameAndVertices {
     // model_frames : [..]MDLModelFrame;
     // model_names : [..]string;
 
@@ -236,17 +236,17 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader) ->[]MDLFrameAndVertices
         // mdl_model_frame.normals = NewArray(mdl_header.vertex_count * 2, Vector3_GLfloat);
         
         group: u32;
-        file_read(file, *group, size_of(u32));
+        file_read(pak_file.file, *group, size_of(u32));
 
         mdl_frame: MDLFrame;
-        file_read(file, *mdl_frame, size_of(MDLFrame));
+        file_read(pak_file.file, *mdl_frame, size_of(MDLFrame));
 
         // model_frame_name := to_string(mdl_frame.name.data);
         // model_frame_name = trim_right(model_frame_name, "0123456789");
 
         // vertices: [MAX_VERTEX_COUNT]MDLVertex;
         vertices := NewArray(mdl_header.vertex_count, MDLVertex);
-        file_read(file, vertices.data, size_of(MDLVertex)*mdl_header.vertex_count);
+        file_read(pak_file.file, vertices.data, size_of(MDLVertex)*mdl_header.vertex_count);
 
         frames[frame].frame = mdl_frame;
         frames[frame].vertices = vertices;
@@ -310,11 +310,11 @@ load_mdl_vertices :: (file: File, mdl_header: MDLHeader) ->[]MDLFrameAndVertices
 }
 
 // TODO(Oskar): result error handling, return false if failiure to load properly.
-load_mdl :: (file: File, pak_file: PakFile, color_palette: []Vector3_U8) -> MDLModel {
+load_mdl :: (pak_file: PakFile, color_palette: []Vector3_U8) -> MDLModel {
     mdl_model : MDLModel;
 
     // NOTE(Oskar): Assume that file offset is in right location if this succeeds.
-    mdl_header_success, mdl_header := load_mdl_header(file, pak_file);
+    mdl_header_success, mdl_header := load_mdl_header(pak_file);
     if !mdl_header_success {
         print("Failed to read mdl_header!");
         return mdl_model;
@@ -322,14 +322,14 @@ load_mdl :: (file: File, pak_file: PakFile, color_palette: []Vector3_U8) -> MDLM
 
     // mdl_model.vertex_count = mdl_header.vertex_count * 2;
 
-    mdl_model.images = load_mdl_texture_data(file, mdl_header, color_palette);
+    mdl_model.images = load_mdl_texture_data(pak_file, mdl_header, color_palette);
 
     mdl_model.scale = mdl_header.scale;
     mdl_model.translate = mdl_header.translate;
 
-    mdl_model.texcoords = load_mdl_texcoords(file, mdl_header);
-    mdl_model.triangles = load_mdl_triangles(file, mdl_header);
-    mdl_model.frames = load_mdl_vertices(file, mdl_header);
+    mdl_model.texcoords = load_mdl_texcoords(pak_file, mdl_header);
+    mdl_model.triangles = load_mdl_triangles(pak_file, mdl_header);
+    mdl_model.frames = load_mdl_vertices(pak_file, mdl_header);
 
     return mdl_model;
 }

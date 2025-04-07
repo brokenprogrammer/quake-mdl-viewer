@@ -59,16 +59,16 @@ MD2Model :: struct {
     images: []PCXImage;
 }
 
-load_md2_header :: (file: File, pak_file: PakFile) -> MD2Header, bool {
+load_md2_header :: (pak_file: PakFile) -> MD2Header, bool {
     mdl_header: MD2Header;
 
-    seek_success := file_seek(file, pak_file.offset, .START);
+    seek_success := file_seek(pak_file.file, pak_file.offset, .START);
     if !seek_success {
         log("Failed to seek to header offset.", flags=.ERROR);
         return mdl_header, false;
     }
 
-    read_success := file_read(file, *mdl_header, size_of(MD2Header));
+    read_success := file_read(pak_file.file, *mdl_header, size_of(MD2Header));
     if !read_success {
         log("Failed to read header from file.", flags=.ERROR);
         return mdl_header, false;
@@ -90,16 +90,16 @@ load_md2_header :: (file: File, pak_file: PakFile) -> MD2Header, bool {
     return mdl_header, true;
 }
 
-load_md2_skins :: (file: File, md2_file: PakFile, md2_header: MD2Header) -> []MD2Skin, bool {
-    file_offset := xx md2_file.offset + md2_header.skin_offset;
-    seek_result := file_seek(file, file_offset, .START);
+load_md2_skins :: (pak_file: PakFile, md2_header: MD2Header) -> []MD2Skin, bool {
+    file_offset := xx pak_file.offset + md2_header.skin_offset;
+    seek_result := file_seek(pak_file.file, file_offset, .START);
     if !seek_result {
         log("Failed to seek to skins section.", flags=.ERROR);
         return .[], false;
     }
 
     skins := NewArray(md2_header.skin_count, MD2Skin);
-    read_result := file_read(file, skins.data, size_of(MD2Skin) * md2_header.skin_count);
+    read_result := file_read(pak_file.file, skins.data, size_of(MD2Skin) * md2_header.skin_count);
     if !read_result {
         log("Failed to read skins section.", flags=.ERROR);
         array_free(skins);
@@ -109,16 +109,16 @@ load_md2_skins :: (file: File, md2_file: PakFile, md2_header: MD2Header) -> []MD
     return skins, true;
 }
 
-load_md2_texcoords :: (file: File, md2_file: PakFile, md2_header: MD2Header) -> []MD2TexCoord, bool {
-    file_offset := xx md2_file.offset + md2_header.texture_coordinate_offset;
-    seek_result := file_seek(file, file_offset, .START);
+load_md2_texcoords :: (pak_file: PakFile, md2_header: MD2Header) -> []MD2TexCoord, bool {
+    file_offset := xx pak_file.offset + md2_header.texture_coordinate_offset;
+    seek_result := file_seek(pak_file.file, file_offset, .START);
     if !seek_result {
         log("Failed to seek to texcoords section.", flags=.ERROR);
         return .[], false;
     }
 
     texcoords := NewArray(md2_header.texture_coordinate_count, MD2TexCoord);
-    read_result := file_read(file, texcoords.data, size_of(MD2TexCoord) * md2_header.texture_coordinate_count);
+    read_result := file_read(pak_file.file, texcoords.data, size_of(MD2TexCoord) * md2_header.texture_coordinate_count);
     if !read_result {
         log("Failed to read texcoords section.", flags=.ERROR);
         array_free(texcoords);
@@ -128,16 +128,16 @@ load_md2_texcoords :: (file: File, md2_file: PakFile, md2_header: MD2Header) -> 
     return texcoords, true;
 }
 
-load_md2_triangles :: (file: File, md2_file: PakFile, md2_header: MD2Header) -> []MD2Triangle, bool {
-    file_offset := xx md2_file.offset + md2_header.triangle_offset;
-    seek_result := file_seek(file, file_offset, .START);
+load_md2_triangles :: (pak_file: PakFile, md2_header: MD2Header) -> []MD2Triangle, bool {
+    file_offset := xx pak_file.offset + md2_header.triangle_offset;
+    seek_result := file_seek(pak_file.file, file_offset, .START);
     if !seek_result {
         log("Failed to seek to triangles section.", flags=.ERROR);
         return .[], false;
     }
 
     triangles := NewArray(md2_header.triangle_count, MD2Triangle);
-    read_result := file_read(file, triangles.data, size_of(MD2Triangle) * md2_header.triangle_count);
+    read_result := file_read(pak_file.file, triangles.data, size_of(MD2Triangle) * md2_header.triangle_count);
     if !read_result {
         log("Failed to read triangles section.", flags=.ERROR);
         array_free(triangles);
@@ -147,9 +147,9 @@ load_md2_triangles :: (file: File, md2_file: PakFile, md2_header: MD2Header) -> 
     return triangles, true;
 }
 
-load_md2_frames :: (file: File, md2_file: PakFile, md2_header: MD2Header)  -> []MD2Frame, bool {
-    file_offset := xx md2_file.offset + md2_header.frame_offset;
-    seek_result := file_seek(file, file_offset, .START);
+load_md2_frames :: (pak_file: PakFile, md2_header: MD2Header)  -> []MD2Frame, bool {
+    file_offset := xx pak_file.offset + md2_header.frame_offset;
+    seek_result := file_seek(pak_file.file, file_offset, .START);
     if !seek_result {
         log("Error seeking to frames section.", flags=.ERROR);
         return .[], false;
@@ -161,28 +161,28 @@ load_md2_frames :: (file: File, md2_file: PakFile, md2_header: MD2Header)  -> []
         md2_frame: MD2Frame;
         md2_frame.vertices = NewArray(md2_header.vertex_count, MD2Vertex);
 
-        read_result := file_read(file, *md2_frame.scale, size_of(Vector3_Float32));
+        read_result := file_read(pak_file.file, *md2_frame.scale, size_of(Vector3_Float32));
         if !read_result {
             log("Failed to read frame scale in frames section.", flags=.ERROR);
             array_free(md2_frame.vertices);
             return .[], false;
         }
 
-        read_result = file_read(file, *md2_frame.translate, size_of(Vector3_Float32));
+        read_result = file_read(pak_file.file, *md2_frame.translate, size_of(Vector3_Float32));
         if !read_result {
             log("Failed to read frame translate in frames section.", flags=.ERROR);
             array_free(md2_frame.vertices);
             return .[], false;
         }
 
-        read_result = file_read(file, *md2_frame.name, size_of(u8) * md2_frame.name.count);
+        read_result = file_read(pak_file.file, *md2_frame.name, size_of(u8) * md2_frame.name.count);
         if !read_result {
             log("Failed to read frame name in frames section.", flags=.ERROR);
             array_free(md2_frame.vertices);
             return .[], false;
         }
 
-        read_result = file_read(file, md2_frame.vertices.data, size_of(MD2Vertex) * md2_header.vertex_count);
+        read_result = file_read(pak_file.file, md2_frame.vertices.data, size_of(MD2Vertex) * md2_header.vertex_count);
         if !read_result {
             log("Failed to read frame vertices in frames section.", flags=.ERROR);
             array_free(md2_frame.vertices);
@@ -207,12 +207,12 @@ md2_model_cleanup :: (md2_model: MD2Model) {
     array_free(md2_model.images);
 }  
 
-load_md2 :: (file: File, md2_file: PakFile, pak_files: []PakFile) -> MD2Model, bool {
+load_md2 :: (pak_file: PakFile, pak_files: []PakFile) -> MD2Model, bool {
     md2_logger_data := project_setup_logger("[MD2 Loader]");
     defer project_cleanup_logger(md2_logger_data);    
 
     // NOTE(Oskar): Assume that file offset is in right location if this succeeds.
-    md2_header, md2_header_success := load_md2_header(file, md2_file);
+    md2_header, md2_header_success := load_md2_header(pak_file);
     if !md2_header_success {
         return .{}, false;
     }
@@ -222,20 +222,20 @@ load_md2 :: (file: File, md2_file: PakFile, pak_files: []PakFile) -> MD2Model, b
     md2_model.skin_height = md2_header.texture_height;
     
     load_skins_success: bool;
-    md2_model.skins, load_skins_success = load_md2_skins(file, md2_file, md2_header);
+    md2_model.skins, load_skins_success = load_md2_skins(pak_file, md2_header);
     if !load_skins_success {
         return .{}, false;
     }
 
     load_texcoords_success: bool;
-    md2_model.texcoords, load_texcoords_success = load_md2_texcoords(file, md2_file, md2_header);
+    md2_model.texcoords, load_texcoords_success = load_md2_texcoords(pak_file, md2_header);
     if !load_texcoords_success {
         array_free(md2_model.skins);
         return .{}, false;
     }
 
     load_triangles_success: bool;
-    md2_model.triangles, load_triangles_success = load_md2_triangles(file, md2_file, md2_header);
+    md2_model.triangles, load_triangles_success = load_md2_triangles(pak_file, md2_header);
     if !load_triangles_success {
         array_free(md2_model.skins);
         array_free(md2_model.texcoords);
@@ -244,7 +244,7 @@ load_md2 :: (file: File, md2_file: PakFile, pak_files: []PakFile) -> MD2Model, b
 
     // TODO(Oskar): if this fails in the middle of frames loading we can leak here..
     load_frames_success: bool;
-    md2_model.frames, load_frames_success = load_md2_frames(file, md2_file, md2_header);
+    md2_model.frames, load_frames_success = load_md2_frames(pak_file, md2_header);
     if !load_frames_success {
         array_free(md2_model.skins);
         array_free(md2_model.texcoords);
@@ -258,13 +258,13 @@ load_md2 :: (file: File, md2_file: PakFile, pak_files: []PakFile) -> MD2Model, b
         for pak_files {
             file_name := to_string(it.name.data);
             if (contains(file_name, to_string(md2_model.skins[skin_index].name.data))) {
-                seek_success := file_seek(file, it.offset, .START);
+                seek_success := file_seek(pak_file.file, it.offset, .START);
                 if !seek_success {
                     print("Failed to seek to md2 header offset\n");
                     return md2_model, false;
                 }
 
-                image, suck := pcx_load(file, it.offset, it.size);
+                image, suck := pcx_load(pak_file.file, it.offset, it.size);
                 md2_model.images[skin_index] = image;
                 break;
             }

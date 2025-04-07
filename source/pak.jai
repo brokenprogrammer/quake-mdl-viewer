@@ -8,6 +8,7 @@ PakFile :: struct {
     name: [56]u8;
     offset: u32;
     size: u32;
+    file: File;
 };
 
 load_pak :: (file: File) -> [] PakFile {
@@ -30,7 +31,7 @@ load_pak :: (file: File) -> [] PakFile {
         return .[];
     }
 
-    pak_file_count := header.size / size_of(PakFile);
+    pak_file_count := header.size / (size_of(PakFile) - size_of(File));
     print("Number of files: %\n", pak_file_count);
 
     
@@ -44,12 +45,13 @@ load_pak :: (file: File) -> [] PakFile {
     this_allocation_is_not_a_leak(pak_files.data);
 
     for 0..pak_file_count - 1 {
-        success, bytes := file_read(file, *pak_files[it], size_of(PakFile));
+        success := file_read(file, *pak_files[it], size_of(PakFile) - size_of(File));
         if !success {
             print("Failed to read pak file!\n");
             return .[];
         }
 
+        pak_files[it].file = file;
         pak_file_name := to_string(pak_files[it].name.data);
 
         if contains(pak_file_name, ".mdl") {

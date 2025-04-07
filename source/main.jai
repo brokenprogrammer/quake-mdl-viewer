@@ -219,11 +219,11 @@ main :: () {
 		file_name := to_string(it.name.data);
         if contains(file_name, g_model_file_names[mdl_file_index]) {
 			if (ends_with(file_name, "mdl")) {
-				mdl_model := load_mdl(file, it, color_palette); 
+				mdl_model := load_mdl(it, color_palette); 
             	g_model = model_create_from_mdl(mdl_model);
 				break;
 			} else if ends_with(file_name, "md2") {
-				md2_model := load_md2(file, it, g_pak_files);
+				md2_model := load_md2(it, g_pak_files);
 				g_model = model_create_from_md2(md2_model);
 				md2_model_cleanup(md2_model);
             	break;
@@ -335,7 +335,7 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
 			file_name := to_string(it.name.data);
             if contains(file_name, g_params.mdl_names[g_params.mdl_index]) {
 				if ends_with(file_name, "mdl") {
-					mdl_model := load_mdl(file, it, color_palette); 
+					mdl_model := load_mdl(it, color_palette); 
 					g_model = model_create_from_mdl(mdl_model);
                 	//g_model = load_mdl(file, it, color_palette);
 
@@ -351,7 +351,7 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
 
 					update_buffers(g_model);
 				} else if ends_with(file_name, "md2") {
-					md2_model := load_md2(file, it, pak_files);
+					md2_model := load_md2(it, pak_files);
 					g_model = model_create_from_md2(md2_model);
 					md2_model_cleanup(md2_model);
 
