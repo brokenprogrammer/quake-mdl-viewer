@@ -9,6 +9,7 @@
 simp :: #import "Simp";
 getrect :: #import "GetRect";
 
+#load "util.jai";
 #load "model.jai";
 #load "pak.jai";
 #load "mdl.jai";
@@ -199,8 +200,8 @@ main :: () {
     getrect.ui_init ();
 	init_fonts ();
 
-    file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
-	// file, file_success := file_open("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake 2\\baseq2\\pak0.pak");
+    // file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
+	file, file_success := file_open("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake 2\\baseq2\\pak0.pak");
     if !file_success {
         print("Could not open pak file!\n");
         return;

@@ -25,35 +25,6 @@ PCXHeader :: struct {
     padding: [54]u8;
 };
 
-PCXLoggerData :: struct {
-    prefix := "[PCX Loader]";
-    old_context_logger: (string, *void, Log_Info);
-    old_context_logger_data: *void;
-}
-
-pcx_logger :: (message: string, data: *void, info: Log_Info) {
-    pcx_logger_data := cast(*PCXLoggerData)data;
-    prefixed_message := tprint("% %", pcx_logger_data.prefix, message);
-    pcx_logger_data.old_context_logger(prefixed_message, pcx_logger_data.old_context_logger_data, info);
-}
-
-pcx_setup_logger :: () -> *PCXLoggerData {
-    pcx_logger_data := New(PCXLoggerData);
-    pcx_logger_data.old_context_logger = context.logger;
-    pcx_logger_data.old_context_logger_data = context.logger_data;
-
-    context.logger = pcx_logger;
-    context.logger_data = pcx_logger_data;
-
-    return pcx_logger_data;
-}
-
-pcx_cleanup_logger :: (pcx_logger_data: *PCXLoggerData) {
-    context.logger      = pcx_logger_data.old_context_logger;
-    context.logger_data = pcx_logger_data.old_context_logger_data;
-    free(pcx_logger_data);
-}
-
 pcx_decode_rle :: (encoded_data: []u8, decoded_size: int, header: PCXHeader) -> []u8 {
     decoded_data := NewArray(decoded_size, u8);
     source := 0;
@@ -151,8 +122,8 @@ PCXImage :: struct {
 };
 
 pcx_load :: (file: File, pcx_file_offset: int, pcx_file_size: int) -> PCXImage, bool {
-    pcx_logger_data := pcx_setup_logger();
-    defer pcx_cleanup_logger(pcx_logger_data);    
+    pcx_logger_data := project_setup_logger("[PCX Loader]");
+    defer project_cleanup_logger(pcx_logger_data);    
 
     file_seek_success := file_seek(file, pcx_file_offset, .START);
     if !file_seek_success {
