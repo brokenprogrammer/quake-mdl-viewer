@@ -31,9 +31,11 @@ g_checkbox_font: *simp.Dynamic_Font;
 g_slider_font: *simp.Dynamic_Font;
 g_dropdown_font: *simp.Dynamic_Font;
 
-g_pak_files: []PakFile;
+g_pak_files: [..]PakFile;
 g_model_file_names: [..]string;
 g_model: Model;
+g_color_palette_initialized := false;
+g_color_palette: []Vector3_U8;
 
 Vector2_GLfloat :: struct {
     x, y: GLfloat;
@@ -83,6 +85,27 @@ handle_window_event :: (event : Event)
 		// for g_params.dropped_files free(it);
 		// array_reset(*g_params.dropped_files);
 		// for event.files array_add(*g_params.dropped_files, copy_string(it));
+		for event.files {
+			if contains(it, ".pak") ||
+			 	contains(it, ".PAK") {
+				// file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
+				// file, file_success := file_open("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake 2\\baseq2\\pak0.pak");
+				file, file_success := file_open(it);
+				if !file_success {
+					print("Could not open pak file!\n");
+					return;
+				}
+
+				// g_pak_files := load_pak(file);
+				new_pak_files := load_pak(file);
+				for new_pak_files {
+					array_add(*g_pak_files, it);
+				}
+
+				g_params.mdl_names = g_model_file_names;
+				array_free(new_pak_files);
+			}
+		}
 	}
 }
 
@@ -200,36 +223,7 @@ main :: () {
     getrect.ui_init ();
 	init_fonts ();
 
-    // file, file_success := file_open("C:/Program Files (x86)/Steam/steamapps/common/Quake/id1/PAK0.PAK");
-	file, file_success := file_open("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake 2\\baseq2\\pak0.pak");
-    if !file_success {
-        print("Could not open pak file!\n");
-        return;
-    }
-
-    g_pak_files := load_pak(file);
-	defer array_free(g_pak_files);
-
-    color_palette := load_mdl_colorpalette(file, g_pak_files);
-    defer free(color_palette.data);
-
-    mdl_file_index := 0;
-
-    for g_pak_files {
-		file_name := to_string(it.name.data);
-        if contains(file_name, g_model_file_names[mdl_file_index]) {
-			if (ends_with(file_name, "mdl")) {
-				mdl_model := load_mdl(it, color_palette); 
-            	g_model = model_create_from_mdl(mdl_model);
-				break;
-			} else if ends_with(file_name, "md2") {
-				md2_model := load_md2(it, g_pak_files);
-				g_model = model_create_from_md2(md2_model);
-				md2_model_cleanup(md2_model);
-            	break;
-			}
-        }    
-    }
+    mdl_file_index := -1;
 
     g_params.mdl_names = g_model_file_names;
     g_params.mdl_index = xx mdl_file_index;
@@ -266,15 +260,20 @@ main :: () {
 			handle_window_event (it);
         }
 
-        update_frame(delta_time, file, g_pak_files, color_palette);
+        update_frame(delta_time, g_pak_files);
 
         time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
         angle: float = fmod_cycling(-180 + time * 360 / 5, 360);
 
         anim: float = g_params.animation_time;
         anim_lerp: float = fmod_cycling(anim, 1.0);
-        frame: int = cast(int)anim % g_model.animations[g_params.animation_index].frames.count;
-        frame_next: int = (frame + 1) % g_model.animations[g_params.animation_index].frames.count;
+
+		frame := 0;
+		frame_next := 0;
+		if (g_model.animations.count > 0) {
+			frame = cast(int)anim % g_model.animations[g_params.animation_index].frames.count;
+			frame_next = (frame + 1) % g_model.animations[g_params.animation_index].frames.count;
+		}
 
         glViewport(0, 0, xx g_current_window_width, xx g_current_window_height);
 
@@ -313,7 +312,7 @@ main :: () {
     }
 }
 
-update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_palette: []Vector3_U8)
+update_frame :: (delta_time : float, pak_files: []PakFile)
 {
 	if !input_application_has_focus && g_control_camera {
 		set_camera_control (false);
@@ -335,9 +334,13 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
 			file_name := to_string(it.name.data);
             if contains(file_name, g_params.mdl_names[g_params.mdl_index]) {
 				if ends_with(file_name, "mdl") {
-					mdl_model := load_mdl(it, color_palette); 
+					if !g_color_palette_initialized {
+						g_color_palette = load_mdl_colorpalette(g_pak_files);
+					}
+
+					// TODO(Oskar): There is no cleanup for mdl_model here..
+					mdl_model := load_mdl(it, g_color_palette); 
 					g_model = model_create_from_mdl(mdl_model);
-                	//g_model = load_mdl(file, it, color_palette);
 
 					array_free(g_params.animation_names);
 					g_params.animation_names = model_get_animation_names(g_model);
@@ -372,6 +375,9 @@ update_frame :: (delta_time : float, file: File, pak_files: []PakFile, color_pal
         }
     }
 
-    g_params.animation_time += delta_time * g_params.animation_speed_in_fps;
-    g_params.animation_time = fmod_cycling(g_params.animation_time, xx g_model.animations[g_params.animation_index].frames.count);
+	if (g_model.animations.count > 0)
+	{
+		g_params.animation_time += delta_time * g_params.animation_speed_in_fps;
+		g_params.animation_time = fmod_cycling(g_params.animation_time, xx g_model.animations[g_params.animation_index].frames.count);
+	}
 }

@@ -119,7 +119,8 @@ update_ui :: (delta_time: float) {
 	}
 	r.y -= pad;
 
-	if g_model.animations[animation_index].frames.count > 1 {
+	if g_model.animations.count > 0 &&
+		g_model.animations[animation_index].frames.count > 1 {
 		// Animation time slider
 		{
 			sample_count := g_model.animations[animation_index].frames.count / 1.0;

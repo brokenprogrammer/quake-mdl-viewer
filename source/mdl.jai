@@ -100,16 +100,16 @@ MDLModel :: struct {
 //     return names;
 // }
 
-load_mdl_colorpalette :: (file: File, pak_files: []PakFile) -> []Vector3_U8 {
+load_mdl_colorpalette :: (pak_files: []PakFile) -> []Vector3_U8 {
     for pak_files {
         if to_string(it.name.data) == "gfx/palette.lmp" {
-            seek_success := file_seek(file, it.offset, .START);
+            seek_success := file_seek(it.file, it.offset, .START);
             if !seek_success {
                 print("Failed to seek to palette offset\n");
             }        
 
             color_palette := NewArray(256, Vector3_U8);
-            success := file_read(file, color_palette.data, size_of(Vector3_U8) * 256);
+            success := file_read(it.file, color_palette.data, size_of(Vector3_U8) * 256);
             if !success {
                 print("Failed to read palette!\n");
             }

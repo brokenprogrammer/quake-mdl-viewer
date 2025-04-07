@@ -304,7 +304,7 @@ init_buffers :: (mdl_model: Model) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[0].skin_width, mdl_model.skins[0].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[0].skin_data.data);
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[0].skin_width, mdl_model.skins[0].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[0].skin_data.data);
 }
 
 update_buffers :: (mdl_model: Model) {
@@ -340,68 +340,70 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
     // glEnable(GL_MULTISAMPLE);
     // glFrontFace(GL_CCW);
 
-    glUseProgram(g_shader);
-    
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFramePos);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame].vertices.data);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFramePos);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame_next].vertices.data);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFrameNormals);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame].normals.data);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFrameNormals);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame_next].normals.data);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Texcoords);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector2_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame].texcoords.data);
-
-    glBindTexture(GL_TEXTURE_2D, g_texture);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[skin_index].skin_width, mdl_model.skins[skin_index].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[skin_index].skin_data.data);
-
-    r1: Quaternion;
-    r2: Quaternion;
-    if !rotate {
-        angle = 0;
-    }  
-
-    set_from_axis_and_angle(*r1, 0, 1, 0, angle * PI / 180.0);
-    set_from_axis_and_angle(*r2, 1, 0, 0, -90.0 * PI / 180.0);    
-    model_matrix := rotation_matrix(Matrix4, r1*r2) * make_translation_matrix4(Vector3.{0.0, 0.0, 2.0}) * make_scale_matrix4(Vector3.{0.1, 0.1, 0.1});
-
-    glUniformMatrix4fv(glGetUniformLocation(g_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
-    glUniformMatrix4fv(glGetUniformLocation(g_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
-    glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
-    glUniform1i(glGetUniformLocation(g_shader, "shading_mode"), shading_mode);
-
     lightPos := float32.[5.0, 5.0, 0.0];
     lightColor := float32.[1.0, 1.0, 1.0];
 
-    glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, lightPos.data);
-    glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
+    if mdl_model.animations.count > 0 {
+        glUseProgram(g_shader);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFramePos);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame].vertices.data);
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, g_texture);
-    glUniform1i(glGetUniformLocation(g_shader, "texture1"), 0);
+        glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFramePos);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame_next].vertices.data);
 
-    glBindVertexArray(g_VAO);
-    glDrawArrays(GL_TRIANGLES, 0, mdl_model.vertex_count);
-    // glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
+        glBindBuffer(GL_ARRAY_BUFFER, g_VBO_CurrentFrameNormals);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame].normals.data);
 
-    if show_normals {
-        glUseProgram(g_viz_normal_shader);
-        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "view"), 1, GL_TRUE, *g_camera.view_matrix.coef[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "projection"), 1, GL_TRUE, *g_camera.projection_matrix.coef[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
+        glBindBuffer(GL_ARRAY_BUFFER, g_VBO_NextFrameNormals);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame_next].normals.data);
+
+        glBindBuffer(GL_ARRAY_BUFFER, g_VBO_Texcoords);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector2_GLfloat) * mdl_model.vertex_count, mdl_model.animations[anim_index].frames[frame].texcoords.data);
+
+        glBindTexture(GL_TEXTURE_2D, g_texture);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[skin_index].skin_width, mdl_model.skins[skin_index].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[skin_index].skin_data.data);
+
+        r1: Quaternion;
+        r2: Quaternion;
+        if !rotate {
+            angle = 0;
+        }  
+
+        set_from_axis_and_angle(*r1, 0, 1, 0, angle * PI / 180.0);
+        set_from_axis_and_angle(*r2, 1, 0, 0, -90.0 * PI / 180.0);    
+        model_matrix := rotation_matrix(Matrix4, r1*r2) * make_translation_matrix4(Vector3.{0.0, 0.0, 2.0}) * make_scale_matrix4(Vector3.{0.1, 0.1, 0.1});
+
+        glUniformMatrix4fv(glGetUniformLocation(g_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(g_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
         glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
+        glUniform1i(glGetUniformLocation(g_shader, "shading_mode"), shading_mode);
+
+        glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, lightPos.data);
+        glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, g_texture);
+        glUniform1i(glGetUniformLocation(g_shader, "texture1"), 0);
+
+        glBindVertexArray(g_VAO);
         glDrawArrays(GL_TRIANGLES, 0, mdl_model.vertex_count);
         // glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
-    }
 
-    glBindVertexArray(0);
+        if show_normals {
+            glUseProgram(g_viz_normal_shader);
+            glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "view"), 1, GL_TRUE, *g_camera.view_matrix.coef[0][0]);
+            glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "projection"), 1, GL_TRUE, *g_camera.projection_matrix.coef[0][0]);
+            glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
+            glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
+            glDrawArrays(GL_TRIANGLES, 0, mdl_model.vertex_count);
+            // glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
+        }
+
+        glBindVertexArray(0);
+    }
 
     draw_cube(Vector3.{lightPos[0], lightPos[1], lightPos[2]});
 }
