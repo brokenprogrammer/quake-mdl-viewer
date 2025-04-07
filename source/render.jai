@@ -478,8 +478,7 @@ void main() {
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
 
-    //vec4(ambient + diffuse, 1.0) *
-    vec4 result = objectColor;
+    vec4 result = vec4(ambient + diffuse, 1.0) * objectColor;
     FragColor = result;
 }
 GLSL
