@@ -76,38 +76,46 @@ update_console :: (delta_time: float) {
     x0 := console_x0 * w;
     x1 := console_x1 * w;
 
-    y0 := console_get_bottom(xx h) + pad;//h * 0.7;
-    y1 := cast(float) h - (y0);
-    Clamp(*y1, 0.0, 10000.0);
+    y0 := console_get_bottom(xx h);
+    y1 := cast(float) h - y0;
 
     r := getrect.get_rect(x0, y0, x1, y1);
 
     // Scrollable console history view.
     {
-        // TODO(Oskar): Why does scroll region contents leak through when console is closed?
-        // r.y += pad;
-        // r.h = h * 0.1;
-
         scrollable_region_theme := theme.scrollable_region_theme;
         scrollable_region_theme.region_background.shape.roundedness = 0;
         scrollable_region_theme.horizontal_margin_size = 0.0;
         scrollable_region_theme.vertical_margin_size = 0.0;
         
+        r.y += pad; // NOTE(Oskar): To also hide the text input
+    
         region, inside := getrect.begin_scrollable_region(r, *scrollable_region_theme);
         {
-            s := inside;
 
+            s := inside;
             s.x = 0.0;
             s.h = pad;
             s.y -= scroll_value;
 
-            // TODO(Oskar): This should be drawn backwards to be in the right order.
-            for console_messages {
-                getrect.label(s, it, *theme.label_theme);
-                s.y += pad;
+            top_y := s.y;
+            bottom_y := s.y;
+            {
+                // TODO(Oskar): Test if this works on other machine.
+                getrect.push_scissor(inside);
+                defer getrect.pop_scissor();
+
+
+                // TODO(Oskar): This should be drawn backwards to be in the right order.
+                for console_messages {
+                    getrect.label(s, it, *theme.label_theme);
+                    bottom_y = s.y;
+                    s.y += pad;
+                }
             }
             
-            getrect.end_scrollable_region(region, s.x + s.w, inside.y - s.y, *scroll_value);
+            s.h = top_y - bottom_y;
+            getrect.end_scrollable_region(region, s.x + s.w, -s.y, *scroll_value);
         }
     }
 
@@ -125,7 +133,6 @@ update_console :: (delta_time: float) {
             modify_string(*string_a, new_text_a);
         } else if action_a & .ENTERED {
             modify_string(*string_a, new_text_a);
-            print("Entered: %\n", new_text_a);
             s := copy_string(new_text_a);
             array_add(*console_messages, s);
         }
