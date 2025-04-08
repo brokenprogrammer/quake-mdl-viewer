@@ -159,6 +159,4 @@ update_ui :: (delta_time: float) {
 			*dropdown_theme
 		);
 	}
-
-    getrect.draw_popups ();
 }

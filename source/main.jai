@@ -19,6 +19,7 @@ getrect :: #import "GetRect";
 #load "render.jai";
 #load "camera.jai";
 #load "ui.jai";
+#load "console.jai";
 
 g_window : Window_Type;
 g_current_window_width, g_current_window_height : s32;
@@ -260,6 +261,16 @@ main :: () {
 			handle_window_event (it);
         }
 
+		if (is_key_pressed(xx #char "Q")) {
+			console_open_or_close(.CLOSED);
+		}
+		if (is_key_pressed(xx #char "R")) {
+			console_open_or_close(.OPEN_SMALL);
+		}
+		if (is_key_pressed(xx #char "T")) {
+			console_open_or_close(.OPEN_BIG);
+		}
+
         update_frame(delta_time, g_pak_files);
 
         time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
@@ -301,6 +312,8 @@ main :: () {
         render(g_model, frame, frame_next, anim_lerp, aspect, g_params.rotate, angle, g_params.animation_index, g_params.skin_index, cast(s32)g_params.shading_mode, g_params.show_normals);
         
         update_ui (delta_time);
+		update_console(delta_time);
+		getrect.draw_popups ();
 
         simp.swap_buffers (g_window);
 
