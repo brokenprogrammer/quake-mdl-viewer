@@ -88,7 +88,8 @@ update_console :: (delta_time: float) {
         scrollable_region_theme.horizontal_margin_size = 0.0;
         scrollable_region_theme.vertical_margin_size = 0.0;
         
-        r.y += pad; // NOTE(Oskar): To also hide the text input
+        // NOTE(Oskar): To also hide the text input
+        r.y += pad;
     
         region, inside := getrect.begin_scrollable_region(r, *scrollable_region_theme);
         {
@@ -105,10 +106,8 @@ update_console :: (delta_time: float) {
                 getrect.push_scissor(inside);
                 defer getrect.pop_scissor();
 
-
-                // TODO(Oskar): This should be drawn backwards to be in the right order.
-                for console_messages {
-                    getrect.label(s, it, *theme.label_theme);
+                for #v2 < 0..console_messages.count - 1 {
+                    getrect.label(s, console_messages[it], *theme.label_theme);
                     bottom_y = s.y;
                     s.y += pad;
                 }
