@@ -93,7 +93,6 @@ update_console :: (delta_time: float) {
     
         region, inside := getrect.begin_scrollable_region(r, *scrollable_region_theme);
         {
-
             s := inside;
             s.x = 0.0;
             s.h = pad;
@@ -101,11 +100,9 @@ update_console :: (delta_time: float) {
 
             top_y := s.y;
             bottom_y := s.y;
+            
+            if open_t > 0.0
             {
-                // TODO(Oskar): Test if this works on other machine.
-                getrect.push_scissor(inside);
-                defer getrect.pop_scissor();
-
                 for #v2 < 0..console_messages.count - 1 {
                     getrect.label(s, console_messages[it], *theme.label_theme);
                     bottom_y = s.y;
