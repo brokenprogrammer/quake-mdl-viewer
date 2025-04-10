@@ -20,6 +20,7 @@ getrect :: #import "GetRect";
 #load "camera.jai";
 #load "ui.jai";
 #load "console.jai";
+#load "commands.jai";
 
 g_window : Window_Type;
 g_current_window_width, g_current_window_height : s32;

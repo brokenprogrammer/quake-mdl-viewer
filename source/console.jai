@@ -124,13 +124,13 @@ update_console :: (delta_time: float) {
         text_input_theme.button_theme.rectangle_shape.roundedness = 0;
 
         r.h = pad;
-        action_a, new_text_a := getrect.text_input(r, string_a, *text_input_theme);
-        if action_a & .TEXT_MODIFIED {
-            modify_string(*string_a, new_text_a);
-        } else if action_a & .ENTERED {
-            modify_string(*string_a, new_text_a);
+        action_a, new_text_a, text_input_state := getrect.text_input(r, string_a, *text_input_theme);
+         if action_a & .ENTERED {
             s := copy_string(new_text_a);
             array_add(*console_messages, s);
+            getrect.clear_text(text_input_state);
+
+            command_run(s);
         }
     }
 }
