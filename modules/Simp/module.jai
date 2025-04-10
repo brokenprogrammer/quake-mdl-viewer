@@ -209,7 +209,11 @@ set_scissor :: (x0: s32, y0: s32, x1: s32, y1: s32) {
     immediate_flush();
     glEnable(GL_SCISSOR_TEST);
 
-    h := context.simp.current_window_info.window_height;
+    h := ifx context.simp.texture_render_target {
+        context.simp.texture_render_target.height;
+    } else {
+        context.simp.current_window_info.window_height;
+    }
 
     dx := cast(u32)max(x1-x0, 0);  // If you invert the input rectangle, just give a 0 width.
     dy := cast(u32)max(y1-y0, 0);
