@@ -60,6 +60,10 @@ console_open_or_close :: (extent: Console_Open_State) {
     console_update_openness(0.01667);
 }
 
+console_add_to_history :: (s: string) {
+    array_add(*console_messages, copy_string(s));
+}
+
 update_console :: (delta_time: float) {
     console_update_openness(delta_time);
 

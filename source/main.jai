@@ -225,6 +225,8 @@ main :: () {
     getrect.ui_init ();
 	init_fonts ();
 
+	commands_init();
+
     mdl_file_index := -1;
 
     g_params.mdl_names = g_model_file_names;
