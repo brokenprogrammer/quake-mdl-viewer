@@ -7,11 +7,43 @@ Command_Info :: struct {
 
 commands: [..]Command_Info;
 commands_init :: () {
-    command_add("ls", command_ls, 0, 1);
-    command_add("add", command_add_ints, 2, 2);
+    command_add("ls", command_front_ls, 0, 1);
+    command_add("add", command_front_add, 2, 2);
 }
 
-command_run :: (line: string) {
+command_run :: (info: Command_Info, arguments: []string) {
+
+    argument_string :: (x: int) -> string {
+        if x == 1 return "";
+        return "s";
+    }
+
+    if info.arg_count_min != -1 {
+        count := arguments.count;
+        if count < info.arg_count_min {
+            if info.arg_count_min == info.arg_count_max {
+                command_output("Error: '%' requries exactly % argument%.", info.name, info.arg_count_min, argument_string(info.arg_count_min));
+                return;
+            } else {
+                command_output("Error: '%' requries at least % argument%.", info.name, info.arg_count_min, argument_string(info.arg_count_min));
+                return;
+            }
+        } else if count > info.arg_count_max {
+            if info.arg_count_min == info.arg_count_max {
+                command_output("Error: '%' requries exactly % argument%.", info.name, info.arg_count_max, argument_string(info.arg_count_max));
+                return;
+            } else {
+                command_output("Error: '%' requries at most % argument%.", info.name, info.arg_count_max, argument_string(info.arg_count_max));
+                return;
+            }
+        }
+    }
+
+    info.proc(arguments);
+
+}
+
+commands_run :: (line: string) {
     print("Run command: %\n", line);
 
     remaining := line;
@@ -48,7 +80,7 @@ command_run :: (line: string) {
     for commands {
         if command_name == it.name {
             if it.proc {
-                it.proc(non_command_arguments);
+                command_run(it, non_command_arguments);
                 found = true;
                 break;
             } else {
@@ -58,7 +90,6 @@ command_run :: (line: string) {
     }
 
     if !found {
-        // Leak
         command_output("%s: Command not known.", command_name);
     }
 
@@ -109,24 +140,24 @@ command_output :: (format: string, args: ..Any) {
 
 command_ls :: (arguments: []string) {
     print("We called ls.\n");
-    if arguments.count > 1 {
-        command_output("Command takes 0 or 1 arguments."); // Move to metaprogram.
-    }
+} @RegisterCommand
+
+command_front_ls :: (arguments: []string) {
+    command_ls(arguments);
 }
 
-command_add_ints :: (arguments: []string) {
-    if arguments.count != 2 {
-        command_output("Error: 'add' requries exactly two arguments.");
-        return;
-    }
 
+command_add :: (i0: int, i1: int) {
+    result := i0 + i1;
+    command_output("% + % = %", i0, i1, result);
+} @RegisterCommand
+
+command_front_add :: (arguments: []string) {
     i0, success := to_integer(arguments[0]);
     i1 := to_integer(arguments[1]);
-
     if !success {
         command_output("Error: 'add' requries numeric arguments.");
     }
 
-    result := i0 + i1;
-    command_output("% + % = %", i0, i1, result);
+    command_add(i0, i1);
 }

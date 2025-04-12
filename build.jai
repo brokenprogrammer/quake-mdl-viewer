@@ -23,11 +23,44 @@ RESOURCE_OUTPUT_DIRECTORY_NAME := "build";
     set_optimization(*options, .DEBUG);
     set_build_options(options, w);
 
-    set_build_options_dc(.{do_output=false});
-
+    compiler_begin_intercept(w);
     add_build_file("source/main.jai", w);
+    compiler_message_loop();
+    compiler_end_intercept(w);
 
+    set_build_options_dc(.{do_output=false});
+    
     copy_directory("data/", tprint("%/data/", RESOURCE_OUTPUT_DIRECTORY_NAME));
+}
+
+commands_to_register: [..]string;
+compiler_message_loop :: () {
+    while true {
+        message := compiler_wait_for_message();
+        if message.kind == .COMPLETE {
+            break;
+        }
+        if message.kind == .TYPECHECKED {
+            tc := cast(*Message_Typechecked) message;
+            for tc.declarations {
+                decl := it.expression;
+
+                for decl.notes {
+                    if it.text == "RegisterCommand" {
+                        array_add(*commands_to_register, decl.name);
+                    }
+                }
+            }
+        } else if message.kind == .PHASE {
+            phase := cast(*Message_Phase) message;
+            if phase.phase == .TYPECHECKED_ALL_WE_CAN  {
+                print("Number of commands: %\n", commands_to_register.count);
+                for commands_to_register {
+                    print("Register command: '%'\n", it);
+                }
+            }
+        }
+    }
 }
 
 #import "Basic";

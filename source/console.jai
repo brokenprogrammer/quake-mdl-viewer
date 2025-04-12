@@ -134,7 +134,7 @@ update_console :: (delta_time: float) {
             array_add(*console_messages, s);
             getrect.clear_text(text_input_state);
 
-            command_run(s);
+            commands_run(s);
         }
     }
 }
