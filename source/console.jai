@@ -1,22 +1,12 @@
-scroll_value: float = 0.0;
-string_a: string;
+#scope_file
+
+console_input_state: *getrect.Text_Input_State;
+
+console_scroll_value: float = 0.0;
+console_input_string: string;
 console_messages: [..]string;
 
-openness_max := 0.7;
-
-open_t := 0.0;
-open_t_target := 0.0;
-dopen_dt := 7.0;
-
-console_x0 := 0.0;
-console_x1 := 1.0;
-console_y_b := 0.7;
-
-Console_Open_State :: enum {
-    CLOSED;
-    OPEN_SMALL;
-    OPEN_BIG;
-};
+console_open_t_target := 0.0;
 
 modify_string :: (ps: *string, new_value: string) {
     free(ps.*);
@@ -31,29 +21,66 @@ console_get_bottom :: (height: float) -> float {
 console_update_openness :: (delta_time: float) {
     dopen := delta_time * dopen_dt;
 
-    if open_t < open_t_target {
+    if open_t < console_open_t_target {
         open_t += dopen;
-        if open_t > open_t_target open_t = open_t_target;
-    } else if open_t > open_t_target {
+        if open_t > console_open_t_target open_t = console_open_t_target;
+    } else if open_t > console_open_t_target {
         open_t -= dopen;
         if open_t < 0 open_t = 0;
     }
 }
 
+#scope_export
+
+Console_Visuals :: struct {
+    dopen_dt := 7.0;
+    open_t := 0.0;
+    
+    console_x0 := 0.0;
+    console_x1 := 1.0;
+    console_y_b := 0.7;
+};
+
+using console_visuals: Console_Visuals;
+
+Console_Open_State :: enum {
+    CLOSED;
+    OPEN_SMALL;
+    OPEN_BIG;
+};
+
 console_is_open :: () -> bool {
-    return open_t_target > 0.0;
+    return console_open_t_target > 0.0;
 } 
 
 console_open_or_close :: (extent: Console_Open_State) {
     if extent == .CLOSED {
-        open_t_target = 0;
+        console_open_t_target = 0;
+
+        // NOTE(Oskar): Deactivate widget
+        if console_input_state && console_input_state.active {
+            getrect.active_widget_remove(console_input_state);
+        }
+
     } else if extent == .OPEN_SMALL {
-        open_t_target = 1;
+        console_open_t_target = 1;
+        
+        // NOTE(Oskar): Give text_input focus
+        if console_input_state && !console_input_state.active {
+            getrect.activate(console_input_state);
+        }
+
     } else if extent == .OPEN_BIG {
-        open_t_target = 3;
+        console_open_t_target = 3;
+        
+        // NOTE(Oskar): Give text input focus
+        if console_input_state && !console_input_state.active {
+            getrect.activate(console_input_state);
+        }
+
     } else {
         // Should not hit here.
-        open_t_target = 1;
+        console_open_t_target = 1;
     }
 
     // NOTE(Oskar): So that if we open the console and start typing during the same frame there won't be 1 frame of lag.
@@ -100,7 +127,7 @@ update_console :: (delta_time: float) {
             s := inside;
             s.x = 0.0;
             s.h = pad;
-            s.y -= scroll_value;
+            s.y -= console_scroll_value;
 
             top_y := s.y;
             bottom_y := s.y;
@@ -115,7 +142,7 @@ update_console :: (delta_time: float) {
             }
             
             s.h = top_y - bottom_y;
-            getrect.end_scrollable_region(region, s.x + s.w, -s.y, *scroll_value);
+            getrect.end_scrollable_region(region, s.x + s.w, -s.y, *console_scroll_value);
         }
     }
 
@@ -128,10 +155,11 @@ update_console :: (delta_time: float) {
         text_input_theme.button_theme.rectangle_shape.roundedness = 0;
 
         r.h = pad;
-        action_a, new_text_a, text_input_state := getrect.text_input(r, string_a, *text_input_theme);
-        if !text_input_state.active {
-            getrect.activate(text_input_state);
-        }
+
+
+        action_a, new_text_a, text_input_state := getrect.text_input(r, console_input_string, *text_input_theme);
+        console_input_state = text_input_state;
+
         if action_a & .ENTERED {
             s := copy_string(new_text_a);
             array_add(*console_messages, s);

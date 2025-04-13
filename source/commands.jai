@@ -91,7 +91,7 @@ commands_run :: (line: string) {
     }
 
     if !found {
-        command_output("%s: Command not known.", command_name);
+        command_output("%: Command not known.", command_name);
     }
 
     print("Arguments: \n");

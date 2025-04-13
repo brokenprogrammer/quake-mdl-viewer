@@ -319,9 +319,9 @@ main :: () {
         
         update_ui (delta_time);
 		update_console(delta_time);
-		getrect.draw_popups ();
+		getrect.draw_popups();
 
-        simp.swap_buffers (g_window);
+        simp.swap_buffers(g_window);
 
 		// report_memory_leaks();
 
