@@ -141,33 +141,11 @@ command_ls :: (arg: string = "") {
     print("We called ls.\n");
 } @RegisterCommand
 
-front_command_ls :: (arguments: []string) {
-    if arguments.count {
-        command_ls(arguments[0]);
-    } else {
-        command_ls();
-    }
-}
-
 command_add :: (i0: int, i1: int) {
     result := i0 + i1;
     command_output("% + % = %", i0, i1, result);
 } @RegisterCommand
 
-front_command_add :: (arguments: []string) {
-    i0, success := to_integer(arguments[0]);
-    i1 := to_integer(arguments[1]);
-    if !success {
-        command_output("Error: 'add' requries numeric arguments.");
-    }
-
-    command_add(i0, i1);
-}
-
 command_quit :: () {
     g_running = false;
 } @RegisterCommand
-
-front_command_quit :: (arguments: []string) {
-    command_quit();
-}

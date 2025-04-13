@@ -116,7 +116,7 @@ generate_code_for_commands :: (w: Workspace) {
         decl := info.decl;
 
         // Header
-        print_to_builder(*lines, "/*\nfront_% :: (arguments: []string) {\n", decl.name);
+        print_to_builder(*lines, "\nfront_% :: (arguments: []string) {\n", decl.name);
         
         // Typechecking
         {
@@ -185,7 +185,7 @@ generate_code_for_commands :: (w: Workspace) {
         }
 
         // Tail
-        append(*lines, "}\n*/\n\n");
+        append(*lines, "}\n\n");
     }
 
     result := builder_to_string(*lines);
