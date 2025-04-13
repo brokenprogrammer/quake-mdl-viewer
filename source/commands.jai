@@ -149,7 +149,6 @@ front_command_ls :: (arguments: []string) {
     }
 }
 
-
 command_add :: (i0: int, i1: int) {
     result := i0 + i1;
     command_output("% + % = %", i0, i1, result);
@@ -163,4 +162,12 @@ front_command_add :: (arguments: []string) {
     }
 
     command_add(i0, i1);
+}
+
+command_quit :: () {
+    g_running = false;
+} @RegisterCommand
+
+front_command_quit :: (arguments: []string) {
+    command_quit();
 }

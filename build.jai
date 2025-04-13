@@ -66,19 +66,34 @@ compiler_message_loop :: (w: Workspace) {
     }
 }
 
+Command_Info :: struct {
+    decl: Code_Procedure_Header;
+    min_args: int;
+    max_args: int;
+}
+
 generate_code_for_commands :: (w: Workspace) {
     lines: String_Builder;
+
+    // NOTE(Oskar): First we register register commands. 
     append(*lines, "register_commands :: () {\n");
     
+    command_infos: [..]Command_Info;
     to_chop := "command_";
     for commands_to_register {
-
-        for it.arguments {
-            print("%: %\n", it.name, it.type_inst.result.type);
-        }
-
         min_args := it.arguments.count;
         max_args := it.arguments.count;
+
+        for it.arguments {
+            // Check if have default argument or not. If expression has a value it has default argument.
+            if (it.expression) {
+                min_args -= 1;
+                print("Default argument: %: %\n", it.name, it.type_inst.result.type);
+            } else {
+                print("Non default argument: %: %\n", it.name, it.type_inst.result.type);
+            }
+        }
+
         command_name := it.name;
         if starts_with(command_name, to_chop) {
             advance(*command_name, to_chop.count);
@@ -86,9 +101,92 @@ generate_code_for_commands :: (w: Workspace) {
 
         print_to_builder(*lines, "command_add(\"%\", front_%, %, %);\n",
                         command_name, it.name, min_args, max_args);
+
+        info: Command_Info;
+        info.decl = it;
+        info.min_args = min_args;
+        info.max_args = max_args;
+        array_add(*command_infos, info);
     }
 
-    append(*lines, "}\n");
+    append(*lines, "}\n\n");
+
+    // NOTE(Oskar): Generate front functions for each command used to validate arguments.
+    for info: command_infos {
+        decl := info.decl;
+
+        // Header
+        print_to_builder(*lines, "/*\nfront_% :: (arguments: []string) {\n", decl.name);
+        
+        // Typechecking
+        {
+            // Declare the variables.
+            for i: 0..info.max_args - 1 {
+                arg_type := decl.arguments[i].type_inst.result.type;
+
+                if arg_type == .INTEGER {
+                    // TODO(Oskar): error handling.
+                    print_to_builder(*lines, "    i% : int = ---;\n", i);
+                } else if arg_type == .STRING {
+                    print_to_builder(*lines, "    i% : string = ---;\n", i);
+                } else {
+                    location := make_location(decl.arguments[i]);
+                    error_message := sprint("Error: Procedure argument % is of a type that is not handled yet by command registration.", i);
+                    compiler_report(location.fully_pathed_filename, location.line_number, location.character_number, error_message);
+                }
+            }
+
+            // Assign the variables.
+            for i: 0..info.max_args - 1 {
+                arg_type := decl.arguments[i].type_inst.result.type;
+
+                inner: string;
+                if arg_type == .INTEGER {
+                    // TODO(Oskar): error handling.
+                    inner = sprint("to_integer(arguments[%])", i);
+                } else if arg_type == .STRING {
+                    inner = sprint("arguments[%]", i);
+                }
+
+                if i >= info.min_args {
+                    print_to_builder(*lines, "    if arguments.count > % { i% = %; }\n", i, i, inner);
+                } else {
+                    print_to_builder(*lines, "    i% = %;\n", i, inner);
+                }
+            }
+        }
+
+        append(*lines, "\n");
+
+        // Call the non-front proc
+        {
+            get_proc_call_string :: (args: int) -> string {
+                arg_strings: [..]string;
+                for i: 0..args - 1 {
+                    // We xx all arguments so we can pass int to u8. Just lazy way to do it, later we should detect oveflows etc.
+                    array_add(*arg_strings, sprint("xx i%", i));
+                    if i != args - 1 array_add(*arg_strings, ", ");
+                }
+
+                // arg_string := ..arg_strings;
+                return join(..arg_strings);
+            }
+
+            if info.min_args == info.max_args {
+                arg_string := get_proc_call_string(info.max_args);
+                print_to_builder(*lines, "    %(%);\n", decl.name, arg_string);
+            } else {
+                for i: info.min_args..info.max_args {
+                    arg_string := get_proc_call_string(i);
+                    line := sprint("    if arguments.count == % { %(%); }\n", i, decl.name, arg_string);
+                    append(*lines, line);
+                }
+            }
+        }
+
+        // Tail
+        append(*lines, "}\n*/\n\n");
+    }
 
     result := builder_to_string(*lines);
     print(result);
