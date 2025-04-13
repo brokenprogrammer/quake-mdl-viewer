@@ -264,14 +264,17 @@ main :: () {
 			handle_window_event (it);
         }
 
-		if (is_key_pressed(xx #char "Q")) {
-			console_open_or_close(.CLOSED);
-		}
-		if (is_key_pressed(xx #char "R")) {
-			console_open_or_close(.OPEN_SMALL);
-		}
-		if (is_key_pressed(xx #char "T")) {
-			console_open_or_close(.OPEN_BIG);
+		if (is_key_pressed(.F1)) {
+			if console_is_open() {
+				console_open_or_close(.CLOSED);
+			} else {
+				set_camera_control(false);
+				if is_key_down(.SHIFT) {
+					console_open_or_close(.OPEN_BIG);
+				} else {
+					console_open_or_close(.OPEN_SMALL);
+				}
+			}
 		}
 
         update_frame(delta_time, g_pak_files);

@@ -129,7 +129,10 @@ update_console :: (delta_time: float) {
 
         r.h = pad;
         action_a, new_text_a, text_input_state := getrect.text_input(r, string_a, *text_input_theme);
-         if action_a & .ENTERED {
+        if !text_input_state.active {
+            getrect.activate(text_input_state);
+        }
+        if action_a & .ENTERED {
             s := copy_string(new_text_a);
             array_add(*console_messages, s);
             getrect.clear_text(text_input_state);
