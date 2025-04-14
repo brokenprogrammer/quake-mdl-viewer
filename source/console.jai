@@ -4,7 +4,12 @@ console_input_state: *getrect.Text_Input_State;
 
 console_scroll_value: float = 0.0;
 console_input_string: string;
-console_messages: [..]string;
+
+History_Line :: struct {
+    text: string;
+    came_from_user := false;
+};
+console_history: [..]History_Line;
 
 console_open_t_target := 0.0;
 
@@ -88,7 +93,10 @@ console_open_or_close :: (extent: Console_Open_State) {
 }
 
 console_add_to_history :: (s: string) {
-    array_add(*console_messages, copy_string(s));
+    line : History_Line;
+    line.came_from_user = false;
+    line.text = copy_string(s);
+    array_add(*console_history, line);
 }
 
 update_console :: (delta_time: float) {
@@ -118,6 +126,12 @@ update_console :: (delta_time: float) {
         scrollable_region_theme.region_background.shape.roundedness = 0;
         scrollable_region_theme.horizontal_margin_size = 0.0;
         scrollable_region_theme.vertical_margin_size = 0.0;
+
+        user_label_theme := theme.label_theme;
+        user_label_theme.text_color = user_label_theme.text_color;
+
+        non_user_label_theme := theme.label_theme;
+        non_user_label_theme.text_color = Vector4.{255.0/255, 255.0/255, 0.0, 1.0};
         
         // NOTE(Oskar): To also hide the text input
         r.y += pad;
@@ -134,8 +148,12 @@ update_console :: (delta_time: float) {
             
             if open_t > 0.0
             {
-                for #v2 < 0..console_messages.count - 1 {
-                    getrect.label(s, console_messages[it], *theme.label_theme);
+                for #v2 < 0..console_history.count - 1 {
+                    if (console_history[it].came_from_user) {
+                        getrect.label(s, console_history[it].text, *user_label_theme);
+                    } else {
+                        getrect.label(s, console_history[it].text, *non_user_label_theme);
+                    }
                     bottom_y = s.y;
                     s.y += pad;
                 }
@@ -157,15 +175,20 @@ update_console :: (delta_time: float) {
         r.h = pad;
 
 
-        action_a, new_text_a, text_input_state := getrect.text_input(r, console_input_string, *text_input_theme);
+        text_input_action, text_input_text, text_input_state := getrect.text_input(r, console_input_string, *text_input_theme);
         console_input_state = text_input_state;
 
-        if action_a & .ENTERED {
-            s := copy_string(new_text_a);
-            array_add(*console_messages, s);
-            getrect.clear_text(text_input_state);
+        if text_input_action & .ENTERED {
+            copy := copy_string(text_input_text);
 
-            commands_run(s);
+            line : History_Line;
+            line.came_from_user = true;
+            line.text = copy;
+            array_add(*console_history, line);
+            
+            commands_run(copy);
+
+            getrect.clear_text(text_input_state);
         }
     }
 }
