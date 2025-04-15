@@ -134,7 +134,7 @@ command_output :: (format: string, args: ..Any) {
     s:= sprint(format, ..args);
     defer free(s);
 
-    console_add_to_history(s);
+    console_add_to_history(s, false);
 }
 
 command_ls :: (arg: string = "") {

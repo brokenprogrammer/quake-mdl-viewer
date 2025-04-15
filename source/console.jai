@@ -8,6 +8,7 @@ console_input_string: string;
 History_Line :: struct {
     text: string;
     came_from_user := false;
+    continued := false;
 };
 console_history: [..]History_Line;
 
@@ -33,6 +34,12 @@ console_update_openness :: (delta_time: float) {
         open_t -= dopen;
         if open_t < 0 open_t = 0;
     }
+}
+
+get_m_width :: (font: *simp.Dynamic_Font) -> int {
+    m := "M";
+    M_width := cast(int) simp.prepare_text(g_font, m);
+    return M_width;
 }
 
 #scope_export
@@ -92,10 +99,62 @@ console_open_or_close :: (extent: Console_Open_State) {
     console_update_openness(0.01667);
 }
 
-console_add_to_history :: (s: string) {
+console_add_to_history :: (_s: string, came_from_user := false) {
+    s := _s;
+    w, h := simp.get_render_dimensions (g_window);
+
+    x1 := console_x1 * w;
+    x0 := console_x0 * w;
+
+    // TODO(Oskar): This should be moved out to state
+    theme_proc := getrect.default_theme_procs[xx getrect.Default_Themes.Bentonite];
+	theme := theme_proc();
+    scrollable_region_theme := theme.scrollable_region_theme;
+    scrollbar_size := floor(scrollable_region_theme.scrollbar_size * w + 0.5) * 2.5;
+    margin_x := floor(scrollable_region_theme.horizontal_margin_size * w + .5) * 2;
+
+    M_width := get_m_width(g_font);
+
+    continued := false;
+    while s {
+        text_width := cast(float) simp.prepare_text(g_font, s);
+        console_width := x1 - x0;
+        console_width -= scrollbar_size;
+        console_width -= margin_x;
+        
+        // NOTE(Oskar): Make room to indent.
+        if continued console_width -= M_width;
+
+        if text_width <= console_width {
+            console_add_single_line_to_history(s, came_from_user, continued);
+            break;
+        }
+
+        subtext := s;
+        found := false;
+        for 0..s.count {
+            subtext.count = it;
+            text_width := cast(float) simp.prepare_text(g_font, subtext);
+
+            if text_width > console_width {
+                found = true;
+                break;
+            }
+        }
+
+        assert(found);
+        subtext.count -= 1;
+        console_add_single_line_to_history(subtext, came_from_user, continued);
+        advance(*s, subtext.count);
+        continued = true;
+    }
+}
+
+console_add_single_line_to_history :: (s: string, came_from_user := false, continued := false) {
     line : History_Line;
-    line.came_from_user = false;
+    line.came_from_user = came_from_user;
     line.text = copy_string(s);
+    line.continued = continued;
     array_add(*console_history, line);
 }
 
@@ -129,13 +188,15 @@ update_console :: (delta_time: float) {
 
         user_label_theme := theme.label_theme;
         user_label_theme.text_color = user_label_theme.text_color;
+        user_label_theme.alignment = getrect.Text_Alignment.Left;
 
         non_user_label_theme := theme.label_theme;
         non_user_label_theme.text_color = Vector4.{255.0/255, 255.0/255, 0.0, 1.0};
-        
+        non_user_label_theme.alignment = getrect.Text_Alignment.Left;
+
         // NOTE(Oskar): To also hide the text input
         r.y += pad;
-    
+
         region, inside := getrect.begin_scrollable_region(r, *scrollable_region_theme);
         {
             s := inside;
@@ -145,14 +206,23 @@ update_console :: (delta_time: float) {
 
             top_y := s.y;
             bottom_y := s.y;
+            M_width := get_m_width(g_font);
             
             if open_t > 0.0
             {
                 for #v2 < 0..console_history.count - 1 {
+                    x_offset := 0.0;
+                    if console_history[it].continued  {
+                        x_offset = xx M_width;
+                    }
+
+                    label_rect := s;
+                    label_rect.x += x_offset;
+                    
                     if (console_history[it].came_from_user) {
-                        getrect.label(s, console_history[it].text, *user_label_theme);
+                        getrect.label(label_rect, console_history[it].text, *user_label_theme);
                     } else {
-                        getrect.label(s, console_history[it].text, *non_user_label_theme);
+                        getrect.label(label_rect, console_history[it].text, *non_user_label_theme);
                     }
                     bottom_y = s.y;
                     s.y += pad;
@@ -179,14 +249,8 @@ update_console :: (delta_time: float) {
         console_input_state = text_input_state;
 
         if text_input_action & .ENTERED {
-            copy := copy_string(text_input_text);
-
-            line : History_Line;
-            line.came_from_user = true;
-            line.text = copy;
-            array_add(*console_history, line);
-            
-            commands_run(copy);
+            console_add_to_history(text_input_text, true);
+            commands_run(text_input_text);
 
             getrect.clear_text(text_input_state);
         }
