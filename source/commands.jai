@@ -7,8 +7,6 @@ Command_Info :: struct {
 
 commands: [..]Command_Info;
 commands_init :: () {
-    // command_add("ls", front_command_ls, 0, 1);
-    // command_add("add", front_command_add, 2, 2);
     register_commands();
 }
 
@@ -136,6 +134,13 @@ command_output :: (format: string, args: ..Any) {
 
     console_add_to_history(s, false);
 }
+
+command_help :: () {
+    command_output("Here are the available commands: ");
+    for commands {
+        command_output(it.name);
+    }
+} @RegisterCommand
 
 command_ls :: (arg: string = "") {
     print("We called ls.\n");
