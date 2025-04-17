@@ -1,7 +1,10 @@
+#scope_file
+
 g_shader: GLuint;
 g_line_shader: GLuint;
 g_cube_shader: GLuint;
 g_viz_normal_shader: GLuint;
+g_skybox_shader: GLuint;
 
 g_VAO: GLuint;
 g_VBO_CurrentFramePos: GLuint;
@@ -12,9 +15,11 @@ g_VBO_Texcoords: GLuint;
 // g_EBO: GLuint;
 
 g_texture: GLuint;
+g_skybox_texture: GLuint;
 
-g_line_vao, g_line_vbo: GLuint;
-g_cube_vao, g_cube_vbo: GLuint;
+g_line_vao, g_line_vbo    : GLuint;
+g_cube_vao, g_cube_vbo    : GLuint;
+g_skybox_vao, g_skybox_vbo: GLuint;
 
 cube_vertices: []float = float.[
     -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
@@ -55,6 +60,51 @@ cube_vertices: []float = float.[
     -0.5,  0.5, -0.5,  0.0,  1.0,  0.0
 ];
 
+skybox_vertices: []float = float.[
+    // positions          
+    -1.0,  1.0, -1.0,
+    -1.0, -1.0, -1.0,
+     1.0, -1.0, -1.0,
+     1.0, -1.0, -1.0,
+     1.0,  1.0, -1.0,
+    -1.0,  1.0, -1.0,
+
+    -1.0, -1.0,  1.0,
+    -1.0, -1.0, -1.0,
+    -1.0,  1.0, -1.0,
+    -1.0,  1.0, -1.0,
+    -1.0,  1.0,  1.0,
+    -1.0, -1.0,  1.0,
+
+     1.0, -1.0, -1.0,
+     1.0, -1.0,  1.0,
+     1.0,  1.0,  1.0,
+     1.0,  1.0,  1.0,
+     1.0,  1.0, -1.0,
+     1.0, -1.0, -1.0,
+
+    -1.0, -1.0,  1.0,
+    -1.0,  1.0,  1.0,
+     1.0,  1.0,  1.0,
+     1.0,  1.0,  1.0,
+     1.0, -1.0,  1.0,
+    -1.0, -1.0,  1.0,
+
+    -1.0,  1.0, -1.0,
+     1.0,  1.0, -1.0,
+     1.0,  1.0,  1.0,
+     1.0,  1.0,  1.0,
+    -1.0,  1.0,  1.0,
+    -1.0,  1.0, -1.0,
+
+    -1.0, -1.0, -1.0,
+    -1.0, -1.0,  1.0,
+     1.0, -1.0, -1.0,
+     1.0, -1.0, -1.0,
+    -1.0, -1.0,  1.0,
+     1.0, -1.0,  1.0
+];
+
 // Used for line rendering
 Vertex_Pos_Color :: struct
 {
@@ -62,7 +112,6 @@ Vertex_Pos_Color :: struct
 	color : Vector4;
 }
 
-#scope_file 
 
 create_shader_program :: (vertex_source: string, fragment_source: string, geometry_source := "") -> GLuint, bool {
     check_compile_errors :: (shader: GLuint) -> bool, info_log: string {
@@ -167,6 +216,47 @@ create_shader_program :: (vertex_source: string, fragment_source: string, geomet
     return result, true;
 }
 
+create_skybox :: (image_faces: []string) -> GLuint {
+    skybox_texture: GLuint;
+
+    glGenTextures(1, *skybox_texture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_texture);
+
+    stbi_set_flip_vertically_on_load(xx false);
+
+    w, h, channels: s32;
+    for image_faces {
+        data := stbi_load(temp_c_string(it), *w, *h, *channels, 0);
+        defer stbi_image_free(data);
+
+        if !data {
+            log("Failed to load skybox texture '%'.", it, flags=.ERROR);
+            return 0;
+        }
+
+        format: GLenum;
+        if (channels == 1) {
+            format = GL_RED;
+
+        } else if (channels == 3) {
+            format = GL_RGB;
+        } else if (channels == 4) {
+            format = GL_RGBA;
+        }
+
+        texture_target: u32 = GL_TEXTURE_CUBE_MAP_POSITIVE_X + cast(u32) it_index; 
+        glTexImage2D(texture_target, 0, xx format, xx w, xx h, 0, xx format, GL_UNSIGNED_BYTE, data);
+    }
+
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return skybox_texture;
+}
+
 #scope_export
 
 draw_line :: inline (start : Vector3, end : Vector3, color : Vector4)
@@ -222,6 +312,10 @@ init_buffers :: (mdl_model: Model) {
     g_viz_normal_shader, ok = create_shader_program (VIZ_NORMALS_VERTEX_SHADER, VIZ_NORMALS_FRAGMENT_SHADER, VIZ_NORMALS_GEOMETRY_SHADER);
     if !ok
 		return;
+
+    g_skybox_shader, ok = create_shader_program(SKYBOX_VERTEX_SHADER, SKYBOX_FRAGMENT_SHADER);
+    if !ok
+        return;
 
     glGenVertexArrays(1, *g_VAO);
     glGenBuffers(1, *g_VBO_CurrentFramePos);
@@ -304,7 +398,27 @@ init_buffers :: (mdl_model: Model) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[0].skin_width, mdl_model.skins[0].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[0].skin_data.data);
+
+    // Skybox
+    skybox_faces : []string = .[
+        "data/textures/skybox/right.png", 
+        "data/textures/skybox/left.png", 
+        "data/textures/skybox/top.png",
+        "data/textures/skybox/bottom.png",
+        "data/textures/skybox/front.png",
+        "data/textures/skybox/back.png"];
+    g_skybox_texture = create_skybox(skybox_faces);
+
+    glGenVertexArrays(1, *g_skybox_vao);
+    glBindVertexArray(g_skybox_vao);
+    glGenBuffers(1, *g_skybox_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, g_skybox_vbo);
+    glBufferData(GL_ARRAY_BUFFER, size_of(float)*skybox_vertices.count, skybox_vertices.data, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * size_of(float), cast(*void)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray (0);
+	glBindBuffer (GL_ARRAY_BUFFER, 0);
 }
 
 update_buffers :: (mdl_model: Model) {
@@ -397,7 +511,7 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
             glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "view"), 1, GL_TRUE, *g_camera.view_matrix.coef[0][0]);
             glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "projection"), 1, GL_TRUE, *g_camera.projection_matrix.coef[0][0]);
             glUniformMatrix4fv(glGetUniformLocation(g_viz_normal_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
-            glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
+            glUniform1f(glGetUniformLocation(g_viz_normal_shader, "interpolation"), anim_lerp);
             glDrawArrays(GL_TRIANGLES, 0, mdl_model.vertex_count);
             // glDrawElements(GL_TRIANGLES, xx (mdl_model.indices.count * 3), GL_UNSIGNED_INT, null);
         }
@@ -406,6 +520,23 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
     }
 
     draw_cube(Vector3.{lightPos[0], lightPos[1], lightPos[2]});
+
+    // Render skybox
+    {
+        view_matrix := make_matrix4(make_matrix3(g_camera.view_matrix));
+        glDepthFunc(GL_LEQUAL);
+        glUseProgram(g_skybox_shader);
+        glUniformMatrix4fv(glGetUniformLocation(g_skybox_shader, "u_View_Matrix"), 1, GL_TRUE, *view_matrix.coef[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(g_skybox_shader, "u_Projection_Matrix"), 1, GL_TRUE, *g_camera.projection_matrix.coef[0][0]);
+
+        glBindVertexArray(g_skybox_vao);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, g_skybox_texture);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        glBindVertexArray(0);
+        glDepthFunc(GL_LESS);
+    }
 }
 
 SHADER_PREFIX :: #string END
@@ -604,6 +735,39 @@ void main()
     GenerateLine(0); // first vertex normal
     GenerateLine(1); // second vertex normal
     GenerateLine(2); // third vertex normal
+}
+
+GLSL
+
+SKYBOX_VERTEX_SHADER :: #string GLSL
+
+layout (location = 0) in vec3 aPos;
+
+out vec3 TexCoords;
+
+uniform mat4 u_Projection_Matrix;
+uniform mat4 u_View_Matrix;
+
+void main()
+{
+    TexCoords = aPos;
+    vec4 pos = u_Projection_Matrix * u_View_Matrix * vec4(aPos, 1);
+    gl_Position = pos.xyww;
+}
+
+GLSL
+
+SKYBOX_FRAGMENT_SHADER :: #string GLSL
+
+out vec4 Frag_Color;
+
+in vec3 TexCoords;
+
+uniform samplerCube skybox;
+
+void main()
+{
+    Frag_Color = texture(skybox, TexCoords);
 }
 
 GLSL

@@ -8,6 +8,7 @@
 
 simp :: #import "Simp";
 getrect :: #import "GetRect";
+#import "stb_image";
 
 #load "util.jai";
 #load "model.jai";
