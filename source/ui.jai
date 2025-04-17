@@ -25,6 +25,7 @@ g_params : struct {
 	rotate := false;
 	show_animation := true;
 	show_normals := false;
+	show_skybox := true;
 	interpolation_mode := Interpolation_Mode.LINEAR; // TODO(Oskar): Implement this later.
 	shading_mode := Shading_Mode.TEXTURE;
 };
@@ -143,6 +144,13 @@ update_ui :: (delta_time: float) {
 		r.w = r.h + xx simp.prepare_text (g_checkbox_font, "Show Normals");
 		pressed := getrect.base_checkbox (r, "Show Normals", show_normals, *checkbox_theme);
 		show_normals ^= pressed;
+	}
+	r.y -= pad;
+	// Show Skybox checkbox
+	{
+		r.w = r.h + xx simp.prepare_text (g_checkbox_font, "Show Skybox");
+		pressed := getrect.base_checkbox (r, "Show Skybox", show_skybox, *checkbox_theme);
+		show_skybox ^= pressed;
 	}
 	r.y -= pad;
 	// Shading mode

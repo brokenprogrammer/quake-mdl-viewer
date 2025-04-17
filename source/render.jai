@@ -448,7 +448,7 @@ update_buffers :: (mdl_model: Model) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[0].skin_width, mdl_model.skins[0].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[0].skin_data.data);
 }
 
-render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool) {
+render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool, show_skybox: bool) {
     // glEnable(GL_CULL_FACE);
     // glCullFace(GL_FRONT);
     // glEnable(GL_MULTISAMPLE);
@@ -522,7 +522,7 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
     draw_cube(Vector3.{lightPos[0], lightPos[1], lightPos[2]});
 
     // Render skybox
-    {
+    if show_skybox {
         view_matrix := make_matrix4(make_matrix3(g_camera.view_matrix));
         glDepthFunc(GL_LEQUAL);
         glUseProgram(g_skybox_shader);

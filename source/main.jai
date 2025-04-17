@@ -321,7 +321,7 @@ main :: () {
 			draw_line (xyz (-25, 0, xx i), xyz (25, 0, xx i), .{0.4, 0.4, 0.4, 1});
         }
 
-        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.rotate, angle, g_params.animation_index, g_params.skin_index, cast(s32)g_params.shading_mode, g_params.show_normals);
+        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.rotate, angle, g_params.animation_index, g_params.skin_index, cast(s32)g_params.shading_mode, g_params.show_normals, g_params.show_skybox);
         
         update_ui (delta_time);
 		update_console(delta_time);
