@@ -20,6 +20,7 @@ getrect :: #import "GetRect";
 #load "camera.jai";
 #load "ui.jai";
 #load "console.jai";
+#load "commands.jai";
 
 g_window : Window_Type;
 g_current_window_width, g_current_window_height : s32;
@@ -190,6 +191,9 @@ set_mouse_pointer_position :: inline (x : int, y : int)
 }
 
 main :: () {
+	mdl_viewer_logger_data := project_setup_logger("[General]");
+    defer project_cleanup_logger(mdl_viewer_logger_data);
+
     #if OS == .WINDOWS
 	{
 		win32 :: #import "Windows";
@@ -218,11 +222,15 @@ main :: () {
 
     simp.set_render_target (g_window);
 
-    print ("GL Vendor = %\n", to_string(glGetString(GL_VENDOR)));
-    print ("GL Version = %\n", to_string(glGetString(GL_VERSION)));
-    
     getrect.ui_init ();
-	init_fonts ();
+	init_fonts();
+
+	console_initialize();
+	commands_init();
+   
+    log("GL Vendor = %\n", to_string(glGetString(GL_VENDOR)));
+    log("GL Version = %\n", to_string(glGetString(GL_VERSION)));
+    
 
     mdl_file_index := -1;
 
@@ -261,14 +269,17 @@ main :: () {
 			handle_window_event (it);
         }
 
-		if (is_key_pressed(xx #char "Q")) {
-			console_open_or_close(.CLOSED);
-		}
-		if (is_key_pressed(xx #char "R")) {
-			console_open_or_close(.OPEN_SMALL);
-		}
-		if (is_key_pressed(xx #char "T")) {
-			console_open_or_close(.OPEN_BIG);
+		if (is_key_pressed(.F1)) {
+			if console_is_open() {
+				console_open_or_close(.CLOSED);
+			} else {
+				set_camera_control(false);
+				if is_key_down(.SHIFT) {
+					console_open_or_close(.OPEN_BIG);
+				} else {
+					console_open_or_close(.OPEN_SMALL);
+				}
+			}
 		}
 
         update_frame(delta_time, g_pak_files);
@@ -313,9 +324,9 @@ main :: () {
         
         update_ui (delta_time);
 		update_console(delta_time);
-		getrect.draw_popups ();
+		getrect.draw_popups();
 
-        simp.swap_buffers (g_window);
+        simp.swap_buffers(g_window);
 
 		// report_memory_leaks();
 
