@@ -6,9 +6,15 @@ console_scroll_value: float = 0.0;
 console_input_string: string;
 
 History_Line :: struct {
+    Line_Flags :: enum {
+        NO_FLAGS    :: 0x0;
+        FROM_USER   :: 0x1;
+        FROM_LOGGER :: 0x2;
+    };
+
     text: string;
-    came_from_user := false;
     continued := false;
+    flags: Line_Flags;
 };
 console_history: [..]History_Line;
 
@@ -43,6 +49,8 @@ get_m_width :: (font: *simp.Dynamic_Font) -> int {
 }
 
 #scope_export
+using History_Line.Line_Flags;
+console_initialized := false;
 
 Console_Visuals :: struct {
     dopen_dt := 7.0;
@@ -99,7 +107,11 @@ console_open_or_close :: (extent: Console_Open_State) {
     console_update_openness(0.01667);
 }
 
-console_add_to_history :: (_s: string, came_from_user := false) {
+console_initialize :: () {
+    console_initialized = true;
+}
+
+console_add_to_history :: (_s: string, flags := NO_FLAGS) {
     s := _s;
     w, h := simp.get_render_dimensions (g_window);
 
@@ -126,7 +138,7 @@ console_add_to_history :: (_s: string, came_from_user := false) {
         if continued console_width -= M_width;
 
         if text_width <= console_width {
-            console_add_single_line_to_history(s, came_from_user, continued);
+            console_add_single_line_to_history(s, flags, continued);
             break;
         }
 
@@ -144,15 +156,15 @@ console_add_to_history :: (_s: string, came_from_user := false) {
 
         assert(found);
         subtext.count -= 1;
-        console_add_single_line_to_history(subtext, came_from_user, continued);
+        console_add_single_line_to_history(subtext, flags, continued);
         advance(*s, subtext.count);
         continued = true;
     }
 }
 
-console_add_single_line_to_history :: (s: string, came_from_user := false, continued := false) {
+console_add_single_line_to_history :: (s: string, flags: History_Line.Line_Flags , continued := false) {
     line : History_Line;
-    line.came_from_user = came_from_user;
+    line.flags = flags;
     line.text = copy_string(s);
     line.continued = continued;
     array_add(*console_history, line);
@@ -194,6 +206,10 @@ update_console :: (delta_time: float) {
         non_user_label_theme.text_color = Vector4.{255.0/255, 255.0/255, 0.0, 1.0};
         non_user_label_theme.alignment = getrect.Text_Alignment.Left;
 
+        logger_label_theme := theme.label_theme;
+        logger_label_theme.text_color = Vector4.{64.0/255, 224.0/255, 208.0/255, 1.0};
+        logger_label_theme.alignment = getrect.Text_Alignment.Left;
+
         // NOTE(Oskar): To also hide the text input
         r.y += pad;
 
@@ -219,8 +235,10 @@ update_console :: (delta_time: float) {
                     label_rect := s;
                     label_rect.x += x_offset;
                     
-                    if (console_history[it].came_from_user) {
+                    if ((console_history[it].flags & FROM_USER)) {
                         getrect.label(label_rect, console_history[it].text, *user_label_theme);
+                    } else if (console_history[it].flags & FROM_LOGGER) {
+                        getrect.label(label_rect, console_history[it].text, *logger_label_theme);
                     } else {
                         getrect.label(label_rect, console_history[it].text, *non_user_label_theme);
                     }
@@ -244,12 +262,11 @@ update_console :: (delta_time: float) {
 
         r.h = pad;
 
-
         text_input_action, text_input_text, text_input_state := getrect.text_input(r, console_input_string, *text_input_theme);
         console_input_state = text_input_state;
 
         if text_input_action & .ENTERED {
-            console_add_to_history(text_input_text, true);
+            console_add_to_history(text_input_text, FROM_USER);
             commands_run(text_input_text);
 
             getrect.clear_text(text_input_state);

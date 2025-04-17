@@ -53,12 +53,25 @@ commands_run :: (line: string) {
         remaining = eat_spaces(remaining);
         if !remaining break;
 
-        until_space, found := find_character_from_left(remaining, #char " ");
-        if found {
-            assert(until_space.count > 0);
+        until_next_command: string;
+        found: bool;
+        was_quote := false;
+        if remaining[0] == #char "\"" {
+            was_quote = true;
+            advance(*remaining, 1);
+            until_next_command, found = find_character_from_left(remaining, #char "\"");
+        } else {
+            until_next_command, found = find_character_from_left(remaining, #char " ");
+        }
 
-            advance(*remaining, until_space.count);
-            array_add(*arguments, until_space);
+        if found {
+            assert(until_next_command.count > 0);
+
+            advance(*remaining, until_next_command.count);
+            array_add(*arguments, until_next_command);
+            if was_quote {
+                advance(*remaining, 1);
+            }
         } else {
             array_add(*arguments, remaining);
             break;
@@ -132,7 +145,7 @@ command_output :: (format: string, args: ..Any) {
     s:= sprint(format, ..args);
     defer free(s);
 
-    console_add_to_history(s, false);
+    console_add_to_history(s);
 }
 
 command_help :: () {
@@ -153,4 +166,96 @@ command_add :: (i0: int, i1: int) {
 
 command_quit :: () {
     g_running = false;
+} @RegisterCommand
+
+command_load_pak :: (path: string) {
+    if contains(path, ".pak") || contains(path, ".PAK") {
+        file, file_success := file_open(path);
+        if !file_success {
+            log("Failed to open pak file.", flags=.ERROR);
+            return;
+        }
+
+        new_pak_files := load_pak(file);
+        for new_pak_files {
+            array_add(*g_pak_files, it);
+        }
+
+        // TODO(Oskar): g_model_file_names.count is incremented on every load so the number will not be accurate.
+        command_output("Loaded pak file containing % files where % are models.", new_pak_files.count, g_model_file_names.count);
+
+        g_params.mdl_names = g_model_file_names;
+        array_free(new_pak_files);
+    }
+    else {
+        command_output("Error: Expected a .pak file.");
+        return;
+    }
+} @RegisterCommand
+
+command_list_models :: () {
+    command_output("Here are the loaded models that is available for viewing: ");
+    for g_model_file_names {
+        command_output(it);
+    }
+} @RegisterCommand
+
+// TODO(Oskar): Split out into general function that can be used by main as well.
+command_load_model :: (name: string) {
+    for g_pak_files {
+        file_name := to_string(it.name.data);
+        if contains(file_name, name) {
+            if ends_with(file_name, "mdl") {
+                if !g_color_palette_initialized {
+                    g_color_palette = load_mdl_colorpalette(g_pak_files);
+                }
+
+                // TODO(Oskar): There is no cleanup for mdl_model here..
+                mdl_model := load_mdl(it, g_color_palette); 
+                g_model = model_create_from_mdl(mdl_model);
+
+                array_free(g_params.animation_names);
+                g_params.animation_names = model_get_animation_names(g_model);
+                g_params.animation_index = 0;
+
+                array_free(g_params.skin_names);
+                g_params.skin_names = model_get_skin_names(g_model);
+                g_params.skin_index = 0;
+
+                g_params.mdl_index_last_frame = g_params.mdl_index;
+
+                update_buffers(g_model);
+
+                found, mdl_file_index := array_find(g_model_file_names, name);
+                if found {
+                    g_params.mdl_index = xx mdl_file_index;
+	                g_params.mdl_index_last_frame = g_params.mdl_index;
+                }
+                break;
+            } else if ends_with(file_name, "md2") {
+                md2_model := load_md2(it, g_pak_files);
+                g_model = model_create_from_md2(md2_model);
+                md2_model_cleanup(md2_model);
+
+                array_free(g_params.animation_names);
+                g_params.animation_names = model_get_animation_names(g_model);
+                g_params.animation_index = 0;
+
+                array_free(g_params.skin_names);
+                g_params.skin_names = model_get_skin_names(g_model);
+                g_params.skin_index = 0;
+
+                g_params.mdl_index_last_frame = g_params.mdl_index;
+
+                update_buffers(g_model);
+                
+                found, mdl_file_index := array_find(g_model_file_names, name);
+                if found {
+                    g_params.mdl_index = xx mdl_file_index;
+	                g_params.mdl_index_last_frame = g_params.mdl_index;
+                }
+                break;
+            }
+        }
+    }
 } @RegisterCommand

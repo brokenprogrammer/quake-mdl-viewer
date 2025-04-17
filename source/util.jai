@@ -7,6 +7,13 @@ ProjectLoggerData :: struct {
 project_logger :: (message: string, data: *void, info: Log_Info) {
     project_logger_data := cast(*ProjectLoggerData)data;
     prefixed_message := tprint("% %", project_logger_data.prefix, message);
+
+    if console_initialized {
+        sanitized_message := getrect.sanitize(prefixed_message);
+        defer free(sanitized_message);
+        console_add_to_history(sanitized_message, FROM_LOGGER);
+    }
+
     project_logger_data.old_context_logger(prefixed_message, project_logger_data.old_context_logger_data, info);
 }
 

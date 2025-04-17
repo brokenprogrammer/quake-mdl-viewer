@@ -191,6 +191,9 @@ set_mouse_pointer_position :: inline (x : int, y : int)
 }
 
 main :: () {
+	mdl_viewer_logger_data := project_setup_logger("[General]");
+    defer project_cleanup_logger(mdl_viewer_logger_data);
+
     #if OS == .WINDOWS
 	{
 		win32 :: #import "Windows";
@@ -219,13 +222,15 @@ main :: () {
 
     simp.set_render_target (g_window);
 
-    print ("GL Vendor = %\n", to_string(glGetString(GL_VENDOR)));
-    print ("GL Version = %\n", to_string(glGetString(GL_VERSION)));
-    
     getrect.ui_init ();
-	init_fonts ();
+	init_fonts();
 
+	console_initialize();
 	commands_init();
+   
+    log("GL Vendor = %\n", to_string(glGetString(GL_VENDOR)));
+    log("GL Version = %\n", to_string(glGetString(GL_VERSION)));
+    
 
     mdl_file_index := -1;
 
