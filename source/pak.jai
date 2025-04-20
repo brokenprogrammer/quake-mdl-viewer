@@ -11,34 +11,34 @@ PakFile :: struct {
     file: File;
 };
 
-load_pak :: (file: File) -> [] PakFile {
+load_pak :: (file: File) -> []PakFile, bool {
+    pak_logger_data := project_setup_logger("[PAK Loader]");
+    defer project_cleanup_logger(pak_logger_data);
+
     // NOTE(Oskar): Read file header.
     header: PakHeader;
     success, bytes := file_read(file, *header, size_of(PakHeader));
     if (!success) || (bytes < size_of(PakHeader)) {
-        print("Could not read pak header!\n");
-        return .[];
+        log("Failed to load header.", flags=.ERROR);
+        return .[], false;
     }
 
     id_string: string;
     id_string.data = header.id.data;
-    id_string.count = 4; 
-    print("Pak header content: %\n", id_string);
+    id_string.count = 4;
 
     header_success := id_string == "PACK";
     if !header_success {
-        print("Bad pak header id.\n");
-        return .[];
+        log("Invalid header.", flags=.ERROR);
+        return .[], false;
     }
 
     pak_file_count := header.size / (size_of(PakFile) - size_of(File));
-    print("Number of files: %\n", pak_file_count);
-
     
     seek_success := file_seek(file, header.offset, .START);
     if !seek_success {
-        print("Unable to read full pak file.\n");
-        return .[];
+        log("Failed to seek to header offset.", flags=.ERROR);
+        return .[], false;
     }
     
     pak_files := NewArray(pak_file_count, PakFile);
@@ -47,8 +47,8 @@ load_pak :: (file: File) -> [] PakFile {
     for 0..pak_file_count - 1 {
         success := file_read(file, *pak_files[it], size_of(PakFile) - size_of(File));
         if !success {
-            print("Failed to read pak file!\n");
-            return .[];
+            log("Failed read pak file data.", flags=.ERROR);
+            return .[], false;
         }
 
         pak_files[it].file = file;
@@ -85,7 +85,6 @@ load_pak :: (file: File) -> [] PakFile {
         }
     }
 
-    print("Pak file successfully loaded.\n");
-    
-    return pak_files;
+    log("Successfully found % pak files.", pak_files.count);
+    return pak_files, true;
 }
