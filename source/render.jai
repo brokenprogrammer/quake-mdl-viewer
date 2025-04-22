@@ -112,7 +112,6 @@ Vertex_Pos_Color :: struct
 	color : Vector4;
 }
 
-
 create_shader_program :: (vertex_source: string, fragment_source: string, geometry_source := "") -> GLuint, bool {
     check_compile_errors :: (shader: GLuint) -> bool, info_log: string {
         success: s32;
@@ -237,7 +236,6 @@ create_skybox :: (image_faces: []string) -> GLuint {
         format: GLenum;
         if (channels == 1) {
             format = GL_RED;
-
         } else if (channels == 3) {
             format = GL_RGB;
         } else if (channels == 4) {

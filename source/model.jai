@@ -24,13 +24,6 @@ Model :: struct {
     skins: []Skin;
 };
 
-
-// Vertex :: struct {
-//     position: Vector3_GLfloat;
-//     normal: Vector3_GLfloat;
-//     texcoord: Vector2_GLfloat;
-// };
-
 model_get_animation_names :: (model: Model) -> []string {
     names: [..]string;
     array_reserve(*names, model.animations.count);

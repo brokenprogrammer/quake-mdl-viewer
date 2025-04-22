@@ -61,7 +61,6 @@ load_pak :: (file: File) -> []PakFile, bool {
         if contains(pak_file_name, ".md2") {
             // TODO(Oskar): better way of doing this? lol
             name := copy_string(pak_file_name);
-            defer free(name);
 
             found, left, right := split_from_right(name, "/");
             if !found {
