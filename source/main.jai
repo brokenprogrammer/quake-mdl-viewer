@@ -37,8 +37,6 @@ g_dropdown_font: *simp.Dynamic_Font;
 g_pak_files: [..]PakFile;
 g_model_file_names: [..]string;
 g_model: Model;
-g_color_palette_initialized := false;
-g_color_palette: []Vector3_U8;
 
 Vector2_GLfloat :: struct {
     x, y: GLfloat;
@@ -359,12 +357,12 @@ update_frame :: (delta_time : float, pak_files: []PakFile)
 			file_name := to_string(it.name.data);
             if contains(file_name, g_params.mdl_names[g_params.mdl_index]) {
 				if ends_with(file_name, "mdl") {
-					if !g_color_palette_initialized {
-						g_color_palette = load_mdl_colorpalette(g_pak_files);
-					}
+					// if !g_color_palette_initialized {
+					// 	g_color_palette = load_mdl_colorpalette(g_pak_files);
+					// }
 
 					// TODO(Oskar): There is no cleanup for mdl_model here..
-					mdl_model := load_mdl(it, g_color_palette); 
+					mdl_model := load_mdl(it, g_pak_files); 
 					g_model = model_create_from_mdl(mdl_model);
 
 					array_free(g_params.animation_names);

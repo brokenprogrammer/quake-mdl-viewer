@@ -56,7 +56,7 @@ MD2Model :: struct {
     texcoords: []MD2TexCoord;
     triangles: []MD2Triangle;
     frames: []MD2Frame;
-    images: []PCXImage;
+    images: []PCXImage; // TODO(Oskar): Rename to texture
 }
 
 load_md2_header :: (pak_file: PakFile) -> MD2Header, bool {

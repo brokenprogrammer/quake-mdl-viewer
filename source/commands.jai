@@ -206,12 +206,12 @@ command_load_model :: (name: string) {
         file_name := to_string(it.name.data);
         if contains(file_name, name) {
             if ends_with(file_name, "mdl") {
-                if !g_color_palette_initialized {
-                    g_color_palette = load_mdl_colorpalette(g_pak_files);
-                }
+                // if !g_color_palette_initialized {
+                //     g_color_palette = load_mdl_colorpalette(g_pak_files);
+                // }
 
                 // TODO(Oskar): There is no cleanup for mdl_model here..
-                mdl_model := load_mdl(it, g_color_palette); 
+                mdl_model := load_mdl(it, g_pak_files); 
                 g_model = model_create_from_mdl(mdl_model);
 
                 array_free(g_params.animation_names);
