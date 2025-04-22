@@ -14,7 +14,7 @@ project_logger :: (message: string, data: *void, info: Log_Info) {
         console_add_to_history(sanitized_message, FROM_LOGGER);
     }
 
-    project_logger_data.old_context_logger(prefixed_message, project_logger_data.old_context_logger_data, info);
+    runtime_support_default_logger(prefixed_message, project_logger_data.old_context_logger_data, info);
 }
 
 project_setup_logger :: (prefix: string) -> *ProjectLoggerData {
