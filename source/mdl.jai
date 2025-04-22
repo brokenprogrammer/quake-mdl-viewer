@@ -1,3 +1,5 @@
+#load "mdl_color_palette.jai";
+
 MAX_TRIANGLE_COUNT :: 2048;
 MAX_VERTEX_COUNT :: 1024;
 
@@ -114,11 +116,17 @@ load_mdl_colorpalette :: (pak_files: []PakFile) -> []Vector3_U8 {
                 print("Failed to read palette!\n");
             }
 
+            for color_palette {
+                print("{ 0x%, 0x%, 0x% },\n", formatInt(it.x, base = 16), formatInt(it.y, base = 16), formatInt(it.z, base = 16));
+            }
+
             return color_palette;
         }
     }
 
     return .[];
+
+    // return default_mdl_color_palette;
 }
 
 load_mdl_header :: (pak_file: PakFile) -> bool, MDLHeader {
