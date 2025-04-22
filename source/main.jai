@@ -105,6 +105,57 @@ handle_window_event :: (event : Event)
 
 				g_params.mdl_names = g_model_file_names;
 				array_free(new_pak_files);
+			} else if contains(it, ".mdl") {
+				file, file_success := file_open(it);
+				if !file_success {
+					print("Could not open mdl file!\n");
+					return;
+				}
+
+				// TODO(Oskar): We need something for this.. lol
+				file_name: string;
+				found, left, right := split_from_right(it, "/");
+				if !found {
+					found, left, right = split_from_right(it, "\\");
+					if !found {
+						log("Error splitting model file name.", flags=.ERROR);
+					}
+					else {
+						file_name = copy_string(right);
+					}
+				}
+				else {
+					file_name = copy_string(right);
+				}
+
+				// TODO(Oskar): Clean a bunch of this shit up
+				pak_file: PakFile;
+				memcpy(pak_file.name.data, file_name.data, file_name.count);
+				pak_file.offset = 0;
+				pak_file.size = xx file_length(file);
+				pak_file.file = file;
+
+				mdl_model := load_mdl(file);
+				g_model = model_create_from_mdl(mdl_model);
+
+				array_free(g_params.animation_names);
+				g_params.animation_names = model_get_animation_names(g_model);
+				g_params.animation_index = 0;
+
+				array_free(g_params.skin_names);
+				g_params.skin_names = model_get_skin_names(g_model);
+				g_params.skin_index = 0;
+
+				array_add(*g_pak_files, pak_file);
+				array_add(*g_model_file_names, file_name);
+				g_params.mdl_names = g_model_file_names;
+				update_buffers(g_model);
+
+				model_name_found, mdl_file_index := array_find(g_model_file_names, file_name);
+                if model_name_found {
+                    g_params.mdl_index = xx mdl_file_index;
+	                g_params.mdl_index_last_frame = g_params.mdl_index;
+                }
 			}
 		}
 	}
