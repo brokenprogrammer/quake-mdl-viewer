@@ -1,0 +1,9 @@
+{
+    "local_modules": [
+    ],
+    "roots": [
+        "source/main.jai",
+        "build.jai"
+    ],
+    "build_root": "build.jai"
+}
