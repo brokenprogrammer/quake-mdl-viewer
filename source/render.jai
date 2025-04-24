@@ -1,3 +1,8 @@
+#load "gizmo.jai";
+
+light_pos: Vector3_GLfloat = Vector3_GLfloat.{0.0, 0.0, 0.0};
+
+
 #scope_file
 
 g_shader: GLuint;
@@ -452,7 +457,7 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
     // glEnable(GL_MULTISAMPLE);
     // glFrontFace(GL_CCW);
 
-    lightPos := float32.[5.0, 5.0, 0.0];
+    _lightPos := float32.[light_pos.x, light_pos.y, light_pos.z];
     lightColor := float32.[1.0, 1.0, 1.0];
 
     if mdl_model.animations.count > 0 {
@@ -493,7 +498,7 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
         glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
         glUniform1i(glGetUniformLocation(g_shader, "shading_mode"), shading_mode);
 
-        glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, lightPos.data);
+        glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, _lightPos.data);
         glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
 
         glActiveTexture(GL_TEXTURE0);
@@ -517,7 +522,11 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
         glBindVertexArray(0);
     }
 
-    draw_cube(Vector3.{lightPos[0], lightPos[1], lightPos[2]});
+    handle_gizmo_interaction();
+
+    draw_cube(Vector3.{light_pos.x, light_pos.y, light_pos.z});
+
+    draw_gizmo();
 
     // Render skybox
     if show_skybox {

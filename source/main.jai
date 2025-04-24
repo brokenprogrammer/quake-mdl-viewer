@@ -46,6 +46,23 @@ Vector3_GLfloat :: struct {
     x, y, z: GLfloat;
 }
 
+operator - :: (a: Vector2_GLfloat, b: Vector2_GLfloat) -> Vector2 {
+    return .{a.x-b.x, a.y-b.y};
+}
+
+operator - :: (a: Vector2_GLfloat, b: Vector2) -> Vector2 {
+    return .{a.x-b.x, a.y-b.y};
+}
+
+operator + :: (a: Vector2_GLfloat, b: Vector2) -> Vector2 {
+    return .{a.x+b.x, a.y+b.y};
+}
+
+operator + :: (a: Vector2_GLfloat, b: Vector2_GLfloat) -> Vector2_GLfloat {
+    return .{a.x+b.x, a.y+b.y};
+}
+
+
 Vector3_GLuint :: struct {
 	x, y, z: GLuint;
 }
@@ -358,9 +375,9 @@ main :: () {
         glClear (GL_DEPTH_BUFFER_BIT);
 
         // Draw coordinate axes
-		draw_line (.{}, .{x=1}, .{x=1, w=1});
-		draw_line (.{}, .{y=1}, .{y=1, w=1});
-		draw_line (.{}, .{z=1}, .{z=1, w=1});
+		// draw_line (.{}, .{x=1}, .{x=1, w=1});
+		// draw_line (.{}, .{y=1}, .{y=1, w=1});
+		// draw_line (.{}, .{z=1}, .{z=1, w=1});
 
 		// Draw grid
 		for i : -25..25 {
