@@ -14,6 +14,8 @@ render_gizmo_mesh :: (mesh: *TG_GeometryMesh_t, user_data: *void) -> void #c_cal
     triangleCount := TG_GetGeometryMeshTriangleCount(mesh);
     
     // Create temporary buffer for the mesh vertices and triangles
+    push_context {
+
     vertices := cast(*TG_GeometryVertex)alloc(size_of(TG_GeometryVertex) * vertexCount);
     triangles := cast(*TG_UInt3)alloc(size_of(TG_UInt3) * triangleCount);
     
@@ -52,6 +54,7 @@ render_gizmo_mesh :: (mesh: *TG_GeometryMesh_t, user_data: *void) -> void #c_cal
         draw_line(pos1, pos2, color1, color2);
         draw_line(pos2, pos3, color2, color3);
         draw_line(pos3, pos1, color3, color1);
+    }
     }
 }
 
