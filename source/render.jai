@@ -1,6 +1,3 @@
-//#load "gizmo.jai";
-#import "tinygizmo";
-
 light_pos: Vector3_GLfloat = Vector3_GLfloat.{0.0, 0.0, 0.0};
 
 #scope_file

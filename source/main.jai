@@ -9,6 +9,7 @@
 simp :: #import "Simp";
 getrect :: #import "GetRect";
 #import "stb_image";
+#import "tinygizmo";
 
 #load "util.jai";
 #load "model.jai";
