@@ -1,7 +1,8 @@
 AT_COMPILE_TIME :: true;
 
 SOURCE_PATH :: "source";
-LIB_BASE_NAME :: "tinygizmo";
+MODULE_NAME :: "tiny_gizmo";
+LIB_BASE_NAME :: "tiny-gizmo";
 
 #if AT_COMPILE_TIME {
     #run,stallable {
@@ -25,9 +26,9 @@ LIB_BASE_NAME :: "tinygizmo";
 
 generate_bindings :: (args: [] string, minimum_os_version: type_of(Build_Options.minimum_os_version)) -> bool {
     target_android := array_find(args, "-android");
-    target_x64     := true;//array_find(args, "-x64");
+    target_x64     := array_find(args, "-x64");
     target_arm     := array_find(args, "-arm64");
-    compile        := true; //array_find(args, "-compile");
+    compile        := array_find(args, "-compile");
     compile_debug  := array_find(args, "-debug");
 
     os_target  := OS;
@@ -52,49 +53,6 @@ generate_bindings :: (args: [] string, minimum_os_version: type_of(Build_Options
             assert(false);
     }
 
-    // if compile {
-    //     source_file: [..]string;
-    //     array_add(*source_file, tprint("%/tiny-gizmo.cpp", SOURCE_PATH));
-    //     array_add(*source_file, tprint("%/tinygizmo_c.cpp", SOURCE_PATH));
-
-    //     make_directory_if_it_does_not_exist(lib_directory, recursive = true);
-    //     lib_path := tprint("%/%", lib_directory, LIB_BASE_NAME);
-    //     success := true;
-    //     if os_target == .MACOS {
-    //         lib_path_x64   := tprint("%_x64", lib_path);
-    //         lib_path_arm64 := tprint("%_arm64", lib_path);
-    //         macos_x64_version_arg   := "-mmacos-version-min=10.13"; // Our current x64 min version
-    //         macos_arm64_version_arg := "-mmacos-version-min=11.0";  // Earliest version that supports arm64
-    //         // x64 variant
-    //         success &&= build_cpp_dynamic_lib(lib_path_x64,   ..source_file, extra = .["-arch", "x86_64", macos_x64_version_arg],   debug=compile_debug);
-    //         success &&= build_cpp_static_lib( lib_path_x64,   ..source_file, extra = .["-arch", "x86_64", macos_x64_version_arg],   debug=compile_debug);
-    //         // arm64 variant
-    //         success &&= build_cpp_dynamic_lib(lib_path_arm64, ..source_file, extra = .["-arch", "arm64",  macos_arm64_version_arg], debug=compile_debug);
-    //         success &&= build_cpp_static_lib( lib_path_arm64, ..source_file, extra = .["-arch", "arm64",  macos_arm64_version_arg], debug=compile_debug);
-    //         // create universal binaries
-    //         run_result := run_command("lipo", "-create", tprint("%.dylib", lib_path_x64), tprint("%.dylib", lib_path_arm64), "-output", tprint("%.dylib", lib_path));
-    //         success &&= (run_result.exit_code == 0);
-    //         run_result  = run_command("lipo", "-create", tprint("%.a",     lib_path_x64), tprint("%.a",     lib_path_arm64), "-output", tprint("%.a",     lib_path));
-    //         success &&= (run_result.exit_code == 0);
-    //     } else {
-    //         extra: [..] string;
-    //         if os_target == .ANDROID {
-    //             _, target_triple_with_sdk := get_android_target_triple(cpu_target);
-    //             array_add(*extra, "-target", target_triple_with_sdk);
-    //         }
-    //         if os_target != .WINDOWS {
-    //             array_add(*extra, "-fPIC");
-    //         }
-
-    //         if os_target != .PS5 {
-    //             success &&= build_cpp_dynamic_lib(lib_path, ..source_file, target = os_target, debug = compile_debug, extra = extra);
-    //         }
-    //         success &&= build_cpp_static_lib(lib_path, ..source_file, target = os_target, debug = compile_debug, extra = extra);
-    //     }
-
-    //     if !success     return false;
-    // }
-
     options: Generate_Bindings_Options;
     options.os = os_target;
     options.cpu = cpu_target;
@@ -103,13 +61,11 @@ generate_bindings :: (args: [] string, minimum_os_version: type_of(Build_Options
 
         array_add(*libpaths, lib_directory);
         array_add(*libnames, LIB_BASE_NAME);
-        array_add(*source_files, tprint("%/tinygizmo_c.h", SOURCE_PATH));
+        array_add(*source_files, tprint("%/tiny-gizmo-c.h", SOURCE_PATH));
         array_add(*typedef_prefixes_to_unwrap, "TG_");
-        array_add(*extra_clang_arguments, "-x", "c++", "-fms-compatibility", "-fms-extensions");
-
 
         generate_library_declarations = false;
-        footer = tprint(FOOTER_TEMPLATE, LIB_BASE_NAME);
+        footer = tprint(FOOTER_TEMPLATE, MODULE_NAME, LIB_BASE_NAME);
 
         auto_detect_enum_prefixes = true;
         log_stripped_declarations = true;
@@ -123,19 +79,19 @@ generate_bindings :: (args: [] string, minimum_os_version: type_of(Build_Options
 FOOTER_TEMPLATE :: #string END
 
 #if OS == .WINDOWS {
-    %1 :: #library "windows/%1";
+    %1 :: #library "windows/%2";
 } else #if OS == .LINUX {
-    %1 :: #library "linux/%1";
+    %1 :: #library "linux/%2";
 } else #if OS == .MACOS {
-    %1 :: #library "macos/%1";
+    %1 :: #library "macos/%2";
 } else #if OS == .ANDROID {
     #if CPU == .X64 {
-        %1 :: #library "android/x64/%1";
+        %1 :: #library "android/x64/%2";
     } else #if CPU == .ARM64 {
-        %1 :: #library "android/arm64/%1";
+        %1 :: #library "android/arm64/%2";
     }
 } else #if OS == .PS5 {
-    %1 :: #library "ps5/%1";
+    %1 :: #library "ps5/%2";
 } else {
     #assert false;
 }

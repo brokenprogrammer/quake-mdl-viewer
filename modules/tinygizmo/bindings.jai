@@ -93,69 +93,69 @@ TG_GeometryVertex :: struct {
 /**
 * Context creation/destruction
 */
-TG_CreateGizmoContext :: () -> *TG_GizmoContext_t #foreign tinygizmo;
-TG_DestroyGizmoContext :: (ctx: *TG_GizmoContext_t) -> void #foreign tinygizmo;
+TG_CreateGizmoContext :: () -> *TG_GizmoContext_t #foreign tiny_gizmo;
+TG_DestroyGizmoContext :: (ctx: *TG_GizmoContext_t) -> void #foreign tiny_gizmo;
 
 /**
 * Context operations
 */
-TG_UpdateGizmoContext :: (ctx: *TG_GizmoContext_t, state: *TG_GizmoApplicationState) -> void #foreign tinygizmo;
-TG_DrawGizmoContext :: (ctx: *TG_GizmoContext_t) -> void #foreign tinygizmo;
-TG_GetGizmoContextMode :: (ctx: *TG_GizmoContext_t) -> TG_TransformMode #foreign tinygizmo;
-TG_SetGizmoContextRenderCallback :: (ctx: *TG_GizmoContext_t, callback: #type (mesh: *TG_GeometryMesh_t, user_data: *void) -> void #c_call, user_data: *void) -> void #foreign tinygizmo;
+TG_UpdateGizmoContext :: (ctx: *TG_GizmoContext_t, state: *TG_GizmoApplicationState) -> void #foreign tiny_gizmo;
+TG_DrawGizmoContext :: (ctx: *TG_GizmoContext_t) -> void #foreign tiny_gizmo;
+TG_GetGizmoContextMode :: (ctx: *TG_GizmoContext_t) -> TG_TransformMode #foreign tiny_gizmo;
+TG_SetGizmoContextRenderCallback :: (ctx: *TG_GizmoContext_t, callback: #type (mesh: *TG_GeometryMesh_t, user_data: *void) -> void #c_call, user_data: *void) -> void #foreign tiny_gizmo;
 
 /**
 * Rigid transform creation/destruction
 */
-TG_CreateRigidTransform :: () -> *TG_RigidTransform_t #foreign tinygizmo;
-TG_CreateRigidTransformWithParams :: (orientation: *TG_Float4, position: *TG_Float3, scale: *TG_Float3) -> *TG_RigidTransform_t #foreign tinygizmo;
+TG_CreateRigidTransform :: () -> *TG_RigidTransform_t #foreign tiny_gizmo;
+TG_CreateRigidTransformWithParams :: (orientation: *TG_Float4, position: *TG_Float3, scale: *TG_Float3) -> *TG_RigidTransform_t #foreign tiny_gizmo;
 
-TG_DestroyRigidTransform :: (transform: *TG_RigidTransform_t) -> void #foreign tinygizmo;
+TG_DestroyRigidTransform :: (transform: *TG_RigidTransform_t) -> void #foreign tiny_gizmo;
 
 /**
 * Rigid transform getters/setters
 */
-TG_GetRigidTransformPosition :: (transform: *TG_RigidTransform_t, position: *TG_Float3) -> void #foreign tinygizmo;
-TG_SetRigidTransformPosition :: (transform: *TG_RigidTransform_t, position: *TG_Float3) -> void #foreign tinygizmo;
+TG_GetRigidTransformPosition :: (transform: *TG_RigidTransform_t, position: *TG_Float3) -> void #foreign tiny_gizmo;
+TG_SetRigidTransformPosition :: (transform: *TG_RigidTransform_t, position: *TG_Float3) -> void #foreign tiny_gizmo;
 
-TG_GetRigidTransformOrientation :: (transform: *TG_RigidTransform_t, orientation: *TG_Float4) -> void #foreign tinygizmo;
-TG_SetRigidTransformOrientation :: (transform: *TG_RigidTransform_t, orientation: *TG_Float4) -> void #foreign tinygizmo;
+TG_GetRigidTransformOrientation :: (transform: *TG_RigidTransform_t, orientation: *TG_Float4) -> void #foreign tiny_gizmo;
+TG_SetRigidTransformOrientation :: (transform: *TG_RigidTransform_t, orientation: *TG_Float4) -> void #foreign tiny_gizmo;
 
-TG_GetRigidTransformScale :: (transform: *TG_RigidTransform_t, scale: *TG_Float3) -> void #foreign tinygizmo;
-TG_SetRigidTransformScale :: (transform: *TG_RigidTransform_t, scale: *TG_Float3) -> void #foreign tinygizmo;
-TG_SetRigidTransformUniformScale :: (transform: *TG_RigidTransform_t, scale: float) -> void #foreign tinygizmo;
+TG_GetRigidTransformScale :: (transform: *TG_RigidTransform_t, scale: *TG_Float3) -> void #foreign tiny_gizmo;
+TG_SetRigidTransformScale :: (transform: *TG_RigidTransform_t, scale: *TG_Float3) -> void #foreign tiny_gizmo;
+TG_SetRigidTransformUniformScale :: (transform: *TG_RigidTransform_t, scale: float) -> void #foreign tiny_gizmo;
 
 /**
 * Transform gizmo manipulation
 */
-TG_TransformGizmo :: (ctx: *TG_GizmoContext_t, name: *u8, transform: *TG_RigidTransform_t) -> bool #foreign tinygizmo;
+TG_TransformGizmo :: (ctx: *TG_GizmoContext_t, name: *u8, transform: *TG_RigidTransform_t) -> bool #foreign tiny_gizmo;
 
 /**
 * Geometry mesh access
 */
-TG_GetGeometryMeshVertexCount :: (mesh: *TG_GeometryMesh_t) -> u32 #foreign tinygizmo;
-TG_GetGeometryMeshTriangleCount :: (mesh: *TG_GeometryMesh_t) -> u32 #foreign tinygizmo;
+TG_GetGeometryMeshVertexCount :: (mesh: *TG_GeometryMesh_t) -> u32 #foreign tiny_gizmo;
+TG_GetGeometryMeshTriangleCount :: (mesh: *TG_GeometryMesh_t) -> u32 #foreign tiny_gizmo;
 
-TG_GetGeometryMeshVertices :: (mesh: *TG_GeometryMesh_t) -> *TG_GeometryVertex #foreign tinygizmo;
-TG_GetGeometryMeshTriangles :: (mesh: *TG_GeometryMesh_t) -> *TG_UInt3 #foreign tinygizmo;
+TG_GetGeometryMeshVertices :: (mesh: *TG_GeometryMesh_t) -> *TG_GeometryVertex #foreign tiny_gizmo;
+TG_GetGeometryMeshTriangles :: (mesh: *TG_GeometryMesh_t) -> *TG_UInt3 #foreign tiny_gizmo;
 
 #scope_file
 
 
 #if OS == .WINDOWS {
-    tinygizmo :: #library "windows/tinygizmo";
+    tiny_gizmo :: #library "windows/tiny-gizmo";
 } else #if OS == .LINUX {
-    tinygizmo :: #library "linux/tinygizmo";
+    tiny_gizmo :: #library "linux/tiny-gizmo";
 } else #if OS == .MACOS {
-    tinygizmo :: #library "macos/tinygizmo";
+    tiny_gizmo :: #library "macos/tiny-gizmo";
 } else #if OS == .ANDROID {
     #if CPU == .X64 {
-        tinygizmo :: #library "android/x64/tinygizmo";
+        tiny_gizmo :: #library "android/x64/tiny-gizmo";
     } else #if CPU == .ARM64 {
-        tinygizmo :: #library "android/arm64/tinygizmo";
+        tiny_gizmo :: #library "android/arm64/tiny-gizmo";
     }
 } else #if OS == .PS5 {
-    tinygizmo :: #library "ps5/tinygizmo";
+    tiny_gizmo :: #library "ps5/tiny-gizmo";
 } else {
     #assert false;
 }
