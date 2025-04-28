@@ -314,6 +314,7 @@ main :: () {
 	g_params.skin_index = 0;
 
     init_buffers(g_model);
+	gizmo_init();
 
     g_camera.position = xyz (1, 1.3, 2.3);
 	g_camera.euler_angles.x = -20 * PI / 180.0;

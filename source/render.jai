@@ -2,60 +2,6 @@ light_pos: Vector3_GLfloat = Vector3_GLfloat.{0.0, 0.0, 0.0};
 
 #scope_file
 
-render_gizmo_mesh :: (mesh: *TG_GeometryMesh_t, user_data: *void) -> void #c_call {
-    if !mesh {
-        return;
-    }
-
-    vertexCount := TG_GetGeometryMeshVertexCount(mesh);
-    triangleCount := TG_GetGeometryMeshTriangleCount(mesh);
-    
-    // Create temporary buffer for the mesh vertices and triangles
-    push_context {
-        vertices := cast(*TG_GeometryVertex)alloc(size_of(TG_GeometryVertex) * vertexCount);
-        defer free(vertices);
-        triangles := cast(*TG_UInt3)alloc(size_of(TG_UInt3) * triangleCount);
-        defer free(triangles);
-        
-        // Get vertex and triangle data from the mesh
-        if vertexCount > 0 {
-            mesh_vertices := TG_GetGeometryMeshVertices(mesh);
-            memcpy(vertices, mesh_vertices, vertexCount * size_of(TG_GeometryVertex));
-        }
-        
-        if triangleCount > 0 {
-            mesh_triangles := TG_GetGeometryMeshTriangles(mesh);
-            memcpy(triangles, mesh_triangles, triangleCount * size_of(TG_UInt3));
-        }
-        
-        // Render the gizmo mesh using lines for simplicity
-        for 0..triangleCount {
-            triangle := triangles[it];
-            v1 := vertices[triangle.x].position;
-            v2 := vertices[triangle.y].position;
-            v3 := vertices[triangle.z].position;
-            
-            c1 := vertices[triangle.x].color;
-            c2 := vertices[triangle.y].color;
-            c3 := vertices[triangle.z].color;
-            
-            // Convert to Vector3/Vector4 for draw_line
-            pos1 := Vector3.{v1.x, v1.y, v1.z};
-            pos2 := Vector3.{v2.x, v2.y, v2.z};
-            pos3 := Vector3.{v3.x, v3.y, v3.z};
-            
-            color1 := Vector4.{c1.x, c1.y, c1.z, c1.w};
-            color2 := Vector4.{c2.x, c2.y, c2.z, c2.w};
-            color3 := Vector4.{c3.x, c3.y, c3.z, c3.w};
-            
-            // Draw the triangle as three lines
-            draw_line(pos1, pos2, color1, color2);
-            draw_line(pos2, pos3, color2, color3);
-            draw_line(pos3, pos1, color3, color1);
-        }
-    }
-}
-
 g_shader: GLuint;
 g_line_shader: GLuint;
 g_cube_shader: GLuint;
@@ -473,10 +419,6 @@ init_buffers :: (mdl_model: Model) {
 
     glBindVertexArray (0);
 	glBindBuffer (GL_ARRAY_BUFFER, 0);
-
-    // Gizmo stuff
-    g_gizmo_context = TG_CreateGizmoContext();
-    TG_SetGizmoContextRenderCallback(g_gizmo_context, render_gizmo_mesh, null);
 }
 
 update_buffers :: (mdl_model: Model) {

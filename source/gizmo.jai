@@ -37,6 +37,11 @@ Ray :: struct {
 
 #scope_export
 
+gizmo_init :: () {
+    g_gizmo_context = TG_CreateGizmoContext();
+    TG_SetGizmoContextRenderCallback(g_gizmo_context, gizmo_render_callback, null);
+}
+
 gizmo_update_state :: () {
     // Set up the gizmo application state based on current input state
     g_gizmo_state.viewport_size = .{xx g_current_window_width, xx g_current_window_height};
@@ -113,4 +118,58 @@ gizmo_render :: () {
     
     // Draw the gizmo
     TG_DrawGizmoContext(g_gizmo_context);
+}
+
+gizmo_render_callback :: (mesh: *TG_GeometryMesh_t, user_data: *void) -> void #c_call {
+    if !mesh {
+        return;
+    }
+
+    vertexCount := TG_GetGeometryMeshVertexCount(mesh);
+    triangleCount := TG_GetGeometryMeshTriangleCount(mesh);
+    
+    // Create temporary buffer for the mesh vertices and triangles
+    push_context {
+        vertices := cast(*TG_GeometryVertex)alloc(size_of(TG_GeometryVertex) * vertexCount);
+        defer free(vertices);
+        triangles := cast(*TG_UInt3)alloc(size_of(TG_UInt3) * triangleCount);
+        defer free(triangles);
+        
+        // Get vertex and triangle data from the mesh
+        if vertexCount > 0 {
+            mesh_vertices := TG_GetGeometryMeshVertices(mesh);
+            memcpy(vertices, mesh_vertices, vertexCount * size_of(TG_GeometryVertex));
+        }
+        
+        if triangleCount > 0 {
+            mesh_triangles := TG_GetGeometryMeshTriangles(mesh);
+            memcpy(triangles, mesh_triangles, triangleCount * size_of(TG_UInt3));
+        }
+        
+        // Render the gizmo mesh using lines for simplicity
+        for 0..triangleCount {
+            triangle := triangles[it];
+            v1 := vertices[triangle.x].position;
+            v2 := vertices[triangle.y].position;
+            v3 := vertices[triangle.z].position;
+            
+            c1 := vertices[triangle.x].color;
+            c2 := vertices[triangle.y].color;
+            c3 := vertices[triangle.z].color;
+            
+            // Convert to Vector3/Vector4 for draw_line
+            pos1 := Vector3.{v1.x, v1.y, v1.z};
+            pos2 := Vector3.{v2.x, v2.y, v2.z};
+            pos3 := Vector3.{v3.x, v3.y, v3.z};
+            
+            color1 := Vector4.{c1.x, c1.y, c1.z, c1.w};
+            color2 := Vector4.{c2.x, c2.y, c2.z, c2.w};
+            color3 := Vector4.{c3.x, c3.y, c3.z, c3.w};
+            
+            // Draw the triangle as three lines
+            draw_line(pos1, pos2, color1, color2);
+            draw_line(pos2, pos3, color2, color3);
+            draw_line(pos3, pos1, color3, color1);
+        }
+    }
 }
