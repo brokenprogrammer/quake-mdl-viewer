@@ -49,20 +49,28 @@ gizmo_update_state :: () {
     }
 
     // TODO(Oskar): Improve this
-    if is_key_pressed(xx #char "T") {
-        g_gizmo_state.hotkey_translate = !g_gizmo_state.hotkey_translate;
+    if is_key_down(xx #char "T") {
+        g_gizmo_state.hotkey_translate = true;
+    } else {
+        g_gizmo_state.hotkey_translate = false;
     }
 
-    if is_key_pressed(xx #char "S") {
-        g_gizmo_state.hotkey_scale = !g_gizmo_state.hotkey_scale;
+    if is_key_down(xx #char "S") {
+        g_gizmo_state.hotkey_scale = true;
+    } else {
+        g_gizmo_state.hotkey_scale = false;
     }
 
-    if is_key_pressed(xx #char "L") {
-        g_gizmo_state.hotkey_local = !g_gizmo_state.hotkey_local;
+    if is_key_down(xx #char "L") {
+        g_gizmo_state.hotkey_local = true;
+    } else {
+        g_gizmo_state.hotkey_local = false;
     }
 
-    if is_key_pressed(xx #char "R") {
-        g_gizmo_state.hotkey_rotate = !g_gizmo_state.hotkey_rotate;
+    if is_key_down(xx #char "R") {
+        g_gizmo_state.hotkey_rotate = true;
+    } else {
+        g_gizmo_state.hotkey_rotate = false;
     }
 
     // Set camera parameters for the gizmo
