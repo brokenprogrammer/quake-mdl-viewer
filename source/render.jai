@@ -1,4 +1,4 @@
-light_pos: Vector3_GLfloat = Vector3_GLfloat.{0.0, 0.0, 0.0};
+//light_pos: Vector3_GLfloat = Vector3_GLfloat.{0.0, 0.0, 0.0};
 light_transform: *TG_RigidTransform_t;
 
 g_gizmo_shader: GLuint;
@@ -518,7 +518,7 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
     // glEnable(GL_MULTISAMPLE);
     // glFrontFace(GL_CCW);
 
-    _lightPos := float32.[light_pos.x, light_pos.y, light_pos.z];
+    // _lightPos := float32.[light_pos.x, light_pos.y, light_pos.z];
     lightColor := float32.[1.0, 1.0, 1.0];
 
     if mdl_model.animations.count > 0 {
@@ -544,22 +544,27 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[skin_index].skin_width, mdl_model.skins[skin_index].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[skin_index].skin_data.data);
 
-        r1: Quaternion;
-        r2: Quaternion;
-        if !rotate {
-            angle = 0;
-        }  
+        // r1: Quaternion;
+        // r2: Quaternion;
+        // if !rotate {
+        //     angle = 0;
+        // }  
 
-        set_from_axis_and_angle(*r1, 0, 1, 0, angle * PI / 180.0);
-        set_from_axis_and_angle(*r2, 1, 0, 0, -90.0 * PI / 180.0);    
-        model_matrix := rotation_matrix(Matrix4, r1*r2) * make_translation_matrix4(Vector3.{0.0, 0.0, 2.0}) * make_scale_matrix4(Vector3.{0.1, 0.1, 0.1});
+        // set_from_axis_and_angle(*r1, 0, 1, 0, angle * PI / 180.0);
+        // set_from_axis_and_angle(*r2, 1, 0, 0, -90.0 * PI / 180.0);    
+        // model_matrix := rotation_matrix(Matrix4, r1*r2) * make_translation_matrix4(Vector3.{0.0, 0.0, 2.0}) * make_scale_matrix4(Vector3.{0.1, 0.1, 0.1});
+        model_matrix := get_transform_matrix(mdl_model.transform);
 
         glUniformMatrix4fv(glGetUniformLocation(g_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(g_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
         glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
         glUniform1i(glGetUniformLocation(g_shader, "shading_mode"), shading_mode);
 
-        glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, _lightPos.data);
+        position: TG_Float3;
+        TG_GetRigidTransformPosition(light_transform, *position);
+        light_position := float32.[position.x, position.y, position.z];
+
+        glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, light_position.data);
         glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
 
         glActiveTexture(GL_TEXTURE0);
@@ -585,7 +590,7 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
 
     draw_cube(light_transform);
 
-    gizmo_render();
+    gizmo_render(mdl_model);
 
     // Render skybox
     if show_skybox {

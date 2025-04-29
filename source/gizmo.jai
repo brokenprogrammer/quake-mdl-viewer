@@ -98,22 +98,30 @@ gizmo_update_state :: () {
     TG_UpdateGizmoContext(g_gizmo_context, *g_gizmo_state);
 }
 
-gizmo_render :: () {
+gizmo_render :: (model: Model) {
     // Create a rigid transform for the light position
     // light_transform := TG_CreateRigidTransform();
     // defer TG_DestroyRigidTransform(light_transform);
     
     // Set the position of the transform to match our light
-    position := TG_Float3.{light_pos.x, light_pos.y, light_pos.z};
-    TG_SetRigidTransformPosition(light_transform, *position);
+    // position := TG_Float3.{light_pos.x, light_pos.y, light_pos.z};
+    // TG_SetRigidTransformPosition(light_transform, *position);
     
     // Make the gizmo manipulate the transform
     if TG_TransformGizmo(g_gizmo_context, "light-position", light_transform) {
         // If the transform was manipulated, update our light position
-        TG_GetRigidTransformPosition(light_transform, *position);
-        light_pos.x = position.x;
-        light_pos.y = position.y;
-        light_pos.z = position.z;
+        // TG_GetRigidTransformPosition(light_transform, *position);
+        // light_pos.x = position.x;
+        // light_pos.y = position.y;
+        // light_pos.z = position.z;
+    }
+
+    if model.animations.count > 0 {
+        if TG_TransformGizmo(g_gizmo_context, "model-gizmo", model.transform) {
+            // TG_GetRigidTransformPosition(model.transform, *position);
+
+            // print("x: %, y: %, z: %\n", position.x, position.y, position.z);
+        }
     }
     
     // Draw the gizmo

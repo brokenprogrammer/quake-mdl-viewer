@@ -22,6 +22,7 @@ Model :: struct {
     animations: [..]Animation;
     vertex_count: u32;
     skins: []Skin;
+    transform: *TG_RigidTransform_t;
 };
 
 model_get_animation_names :: (model: Model) -> []string {
@@ -49,6 +50,21 @@ model_get_skin_names :: (model: Model) -> []string {
 model_create_from_mdl :: (mdl_model: MDLModel) -> Model {
     model: Model;
     
+    model.transform = TG_CreateRigidTransform();
+    position := TG_Float3.{0.0, 2.0, 0.0};
+    TG_SetRigidTransformPosition(model.transform, *position);
+
+    scale := TG_Float3.{0.1, 0.1, 0.1};
+    TG_SetRigidTransformScale(model.transform, *scale);
+
+    r1: Quaternion;
+    r2: Quaternion;
+    // set_from_axis_and_angle(*r1, 0, 1, 0, 0 * PI / 180.0);
+    set_from_axis_and_angle(*r2, 1, 0, 0, -90.0 * PI / 180.0);
+    orientation := TG_Float4.{r2.component[0], r2.component[1], r2.component[2], r2.component[3]};
+    TG_SetRigidTransformOrientation(model.transform, *orientation);
+
+
     model.vertex_count = xx (mdl_model.triangles.count * 3);
     model.skins = NewArray(mdl_model.images.count, Skin);
     for 0..model.skins.count - 1 {
@@ -128,6 +144,20 @@ model_create_from_mdl :: (mdl_model: MDLModel) -> Model {
 
 model_create_from_md2 :: (md2_model: MD2Model) -> Model {
     model: Model;
+
+    model.transform = TG_CreateRigidTransform();
+    position := TG_Float3.{0.0, 2.0, 0.0};
+    TG_SetRigidTransformPosition(model.transform, *position);
+
+    scale := TG_Float3.{0.1, 0.1, 0.1};
+    TG_SetRigidTransformScale(model.transform, *scale);
+
+    r1: Quaternion;
+    r2: Quaternion;
+    // set_from_axis_and_angle(*r1, 0, 1, 0, 0 * PI / 180.0);
+    set_from_axis_and_angle(*r2, 1, 0, 0, -90.0 * PI / 180.0);
+    orientation := TG_Float4.{r2.component[0], r2.component[1], r2.component[2], r2.component[3]};
+    TG_SetRigidTransformOrientation(model.transform, *orientation);
 
     model.vertex_count = xx (md2_model.triangles.count * 3);
     model.skins = NewArray(md2_model.skins.count, Skin);
