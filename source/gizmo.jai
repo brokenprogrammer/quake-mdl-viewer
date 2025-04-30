@@ -154,6 +154,11 @@ gizmo_render_callback :: (mesh: *TG_GeometryMesh_t, user_data: *void) -> void #c
             triangle_vertices[it * 3 + 2] = mesh_vertices[triangle.z];
         }
 
+        // NOTE(Oskar): Always render gizmos on top of everything to they dont get stuck in models.
+        previous_depth_function: GLint;
+        glGetIntegerv(GL_DEPTH_FUNC, *previous_depth_function);
+        glDepthFunc(GL_ALWAYS);
+
         glUseProgram(g_gizmo_shader);
 
         glBindVertexArray(g_gizmo_vao);
@@ -171,6 +176,8 @@ gizmo_render_callback :: (mesh: *TG_GeometryMesh_t, user_data: *void) -> void #c
 
         glDrawArrays(GL_TRIANGLES, 0, cast(GLsizei) total_vertices);
         glBindVertexArray(0);
+
+        glDepthFunc(xx previous_depth_function);
     }  
 
     // Create temporary buffer for the mesh vertices and triangles
