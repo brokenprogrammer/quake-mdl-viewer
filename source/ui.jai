@@ -22,7 +22,6 @@ g_params : struct {
 	skin_index: s32;
 	animation_time := 0.0;
 	animation_speed_in_fps := 10.0;
-	rotate := false;
 	show_animation := true;
 	show_normals := false;
 	show_skybox := true;
@@ -131,14 +130,7 @@ update_ui :: (delta_time: float) {
 		}
 		r.y -= pad;
 	}
-
-	// Perform Rotation checkbox
-	{
-		r.w = r.h + xx simp.prepare_text (g_checkbox_font, "Rotate");
-		pressed := getrect.base_checkbox (r, "Rotate", rotate, *checkbox_theme);
-		rotate ^= pressed;
-	}
-	r.y -= pad;
+	
 	// Show Normals checkbox
 	{
 		r.w = r.h + xx simp.prepare_text (g_checkbox_font, "Show Normals");

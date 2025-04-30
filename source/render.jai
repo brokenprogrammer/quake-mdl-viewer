@@ -512,7 +512,7 @@ update_buffers :: (mdl_model: Model) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[0].skin_width, mdl_model.skins[0].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[0].skin_data.data);
 }
 
-render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool, show_skybox: bool) {
+render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool, show_skybox: bool) {
     // glEnable(GL_CULL_FACE);
     // glCullFace(GL_FRONT);
     // glEnable(GL_MULTISAMPLE);
@@ -544,15 +544,6 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[skin_index].skin_width, mdl_model.skins[skin_index].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[skin_index].skin_data.data);
 
-        // r1: Quaternion;
-        // r2: Quaternion;
-        // if !rotate {
-        //     angle = 0;
-        // }  
-
-        // set_from_axis_and_angle(*r1, 0, 1, 0, angle * PI / 180.0);
-        // set_from_axis_and_angle(*r2, 1, 0, 0, -90.0 * PI / 180.0);    
-        // model_matrix := rotation_matrix(Matrix4, r1*r2) * make_translation_matrix4(Vector3.{0.0, 0.0, 2.0}) * make_scale_matrix4(Vector3.{0.1, 0.1, 0.1});
         model_matrix := get_transform_matrix(mdl_model.transform);
 
         glUniformMatrix4fv(glGetUniformLocation(g_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);

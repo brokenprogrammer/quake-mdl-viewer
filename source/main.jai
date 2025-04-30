@@ -355,11 +355,9 @@ main :: () {
         update_frame(delta_time, g_pak_files);
 
         time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
-        angle: float = fmod_cycling(-180 + time * 360 / 5, 360);
 
         anim: float = g_params.animation_time;
         anim_lerp: float = fmod_cycling(anim, 1.0);
-
 		frame := 0;
 		frame_next := 0;
 		if (g_model.animations.count > 0) {
@@ -391,7 +389,7 @@ main :: () {
         }
 
 		gizmo_update_state();
-        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.rotate, angle, g_params.animation_index, g_params.skin_index, cast(s32)g_params.shading_mode, g_params.show_normals, g_params.show_skybox);
+        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.animation_index, g_params.skin_index, cast(s32)g_params.shading_mode, g_params.show_normals, g_params.show_skybox);
         
         update_ui (delta_time);
 		update_console(delta_time);
