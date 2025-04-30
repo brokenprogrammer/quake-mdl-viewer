@@ -512,7 +512,7 @@ update_buffers :: (mdl_model: Model) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[0].skin_width, mdl_model.skins[0].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[0].skin_data.data);
 }
 
-render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool, show_skybox: bool) {
+render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool, show_skybox: bool, show_gizmos: bool) {
     // glEnable(GL_CULL_FACE);
     // glCullFace(GL_FRONT);
     // glEnable(GL_MULTISAMPLE);
@@ -581,7 +581,9 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
 
     draw_cube(light_transform);
 
-    gizmo_render(mdl_model);
+    if show_gizmos {
+        gizmo_render(mdl_model);
+    }
 
     // Render skybox
     if show_skybox {

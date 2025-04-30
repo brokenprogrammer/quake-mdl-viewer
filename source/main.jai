@@ -389,7 +389,7 @@ main :: () {
         }
 
 		gizmo_update_state();
-        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.animation_index, g_params.skin_index, cast(s32)g_params.shading_mode, g_params.show_normals, g_params.show_skybox);
+        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.animation_index, g_params.skin_index, cast(s32)g_params.shading_mode, g_params.show_normals, g_params.show_skybox, g_params.show_gizmos);
         
         update_ui (delta_time);
 		update_console(delta_time);
