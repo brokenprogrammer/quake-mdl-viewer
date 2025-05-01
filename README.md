@@ -21,6 +21,7 @@ jai build.jai
 - Render normals.
 - Skybox.
 - Quake-style dropdown console.
+- Translation, Rotation and Scaling gizmos.
 
 |     |     |
 | --- | --- |
