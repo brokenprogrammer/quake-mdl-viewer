@@ -339,6 +339,7 @@ main :: () {
 			handle_window_event (it);
         }
 
+		// Console toggle
 		if (is_key_pressed(.F1)) {
 			if console_is_open() {
 				console_open_or_close(.CLOSED);
@@ -350,6 +351,11 @@ main :: () {
 					console_open_or_close(.OPEN_SMALL);
 				}
 			}
+		}
+
+		// Controls toggle
+		if is_key_pressed((.F2)) {
+			g_params.controls_subwindow.open = !g_params.controls_subwindow.open;
 		}
 
         update_frame(delta_time, g_pak_files);
