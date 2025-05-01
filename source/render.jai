@@ -295,7 +295,7 @@ qzdir :: (q: Vector4) -> Vector3 {
     return .{ (q.z*q.x + q.y*q.w) * 2, (q.y*q.z - q.x*q.w) * 2, q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z };
 }
 
-get_transform_matrix :: (transform: *TG_RigidTransform_t) -> Matrix4 {
+get_transform_matrix :: (transform: *TG_RigidTransform_t, static_transform: Matrix4) -> Matrix4 {
     position: TG_Float3;
     orientation: TG_Float4;
     scale: TG_Float3;
@@ -319,14 +319,14 @@ get_transform_matrix :: (transform: *TG_RigidTransform_t) -> Matrix4 {
     matrix.v[2] = .{x_axis.z, y_axis.z, z_axis.z, position_vector.z};
     matrix.v[3] = .{0, 0, 0, 1};
 
-    return matrix;
+    return matrix * static_transform;
 }
 
 draw_cube :: (transform: *TG_RigidTransform_t) {
     glBindVertexArray(g_cube_vao);
     glUseProgram(g_cube_shader);
 
-    model_matrix := get_transform_matrix(transform);
+    model_matrix := get_transform_matrix(transform, Matrix4_Identity);
 
     glUniformMatrix4fv (glGetUniformLocation (g_cube_shader, "u_View_Projection_Matrix"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
 	glUniformMatrix4fv (glGetUniformLocation (g_cube_shader, "u_Model_Matrix"), 1, GL_TRUE, *model_matrix.coef[0][0]);
@@ -544,7 +544,7 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[skin_index].skin_width, mdl_model.skins[skin_index].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[skin_index].skin_data.data);
 
-        model_matrix := get_transform_matrix(mdl_model.transform);
+        model_matrix := get_transform_matrix(mdl_model.transform, mdl_model.static_transform);
 
         glUniformMatrix4fv(glGetUniformLocation(g_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(g_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
