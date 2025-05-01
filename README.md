@@ -28,7 +28,7 @@ jai build.jai
 | <img src=".github/dynamic_camera.gif" alt="Dynamic camera"/> Dynamic Camera | <img src=".github/render_normals.gif" alt="Render normals"/> Render normals |
 | <img src=".github/select_shading_mode.gif" alt="Select shading mode"/> Select shading mode | <img src=".github/skin_selection.gif" alt="Skin selection"/> Skin selection |
 | <img src=".github/swap_animations.gif" alt="Select animation"/> Select animation | <img src=".github/dropdown_console.gif" alt="Quake-style Console"/> Quake-style Console |
-| <img src=".github/skybox_support.gif" alt="Skybox support"/> Skybox support | |
+| <img src=".github/skybox_support.gif" alt="Skybox support"/> Skybox support | <img src=".github/gizmos.gif" alt="Gizmos"/> Translate, Rotate & Scale Gizmos |
 
 
 ## Resources
