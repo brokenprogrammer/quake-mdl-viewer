@@ -9,6 +9,7 @@
 simp :: #import "Simp";
 getrect :: #import "GetRect";
 #import "stb_image";
+#import "tinygizmo";
 
 #load "util.jai";
 #load "model.jai";
@@ -22,6 +23,7 @@ getrect :: #import "GetRect";
 #load "ui.jai";
 #load "console.jai";
 #load "commands.jai";
+#load "gizmo.jai";
 
 g_window : Window_Type;
 g_current_window_width, g_current_window_height : s32;
@@ -45,6 +47,23 @@ Vector2_GLfloat :: struct {
 Vector3_GLfloat :: struct {
     x, y, z: GLfloat;
 }
+
+operator - :: (a: Vector2_GLfloat, b: Vector2_GLfloat) -> Vector2 {
+    return .{a.x-b.x, a.y-b.y};
+}
+
+operator - :: (a: Vector2_GLfloat, b: Vector2) -> Vector2 {
+    return .{a.x-b.x, a.y-b.y};
+}
+
+operator + :: (a: Vector2_GLfloat, b: Vector2) -> Vector2 {
+    return .{a.x+b.x, a.y+b.y};
+}
+
+operator + :: (a: Vector2_GLfloat, b: Vector2_GLfloat) -> Vector2_GLfloat {
+    return .{a.x+b.x, a.y+b.y};
+}
+
 
 Vector3_GLuint :: struct {
 	x, y, z: GLuint;
@@ -295,6 +314,7 @@ main :: () {
 	g_params.skin_index = 0;
 
     init_buffers(g_model);
+	gizmo_init();
 
     g_camera.position = xyz (1, 1.3, 2.3);
 	g_camera.euler_angles.x = -20 * PI / 180.0;
@@ -319,6 +339,7 @@ main :: () {
 			handle_window_event (it);
         }
 
+		// Console toggle
 		if (is_key_pressed(.F1)) {
 			if console_is_open() {
 				console_open_or_close(.CLOSED);
@@ -332,14 +353,17 @@ main :: () {
 			}
 		}
 
+		// Controls toggle
+		if is_key_pressed((.F2)) {
+			g_params.controls_subwindow.open = !g_params.controls_subwindow.open;
+		}
+
         update_frame(delta_time, g_pak_files);
 
         time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
-        angle: float = fmod_cycling(-180 + time * 360 / 5, 360);
 
         anim: float = g_params.animation_time;
         anim_lerp: float = fmod_cycling(anim, 1.0);
-
 		frame := 0;
 		frame_next := 0;
 		if (g_model.animations.count > 0) {
@@ -358,9 +382,9 @@ main :: () {
         glClear (GL_DEPTH_BUFFER_BIT);
 
         // Draw coordinate axes
-		draw_line (.{}, .{x=1}, .{x=1, w=1});
-		draw_line (.{}, .{y=1}, .{y=1, w=1});
-		draw_line (.{}, .{z=1}, .{z=1, w=1});
+		// draw_line (.{}, .{x=1}, .{x=1, w=1});
+		// draw_line (.{}, .{y=1}, .{y=1, w=1});
+		// draw_line (.{}, .{z=1}, .{z=1, w=1});
 
 		// Draw grid
 		for i : -25..25 {
@@ -370,7 +394,8 @@ main :: () {
 			draw_line (xyz (-25, 0, xx i), xyz (25, 0, xx i), .{0.4, 0.4, 0.4, 1});
         }
 
-        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.rotate, angle, g_params.animation_index, g_params.skin_index, cast(s32)g_params.shading_mode, g_params.show_normals, g_params.show_skybox);
+		gizmo_update_state();
+        render(g_model, frame, frame_next, anim_lerp, aspect, g_params.animation_index, g_params.skin_index, cast(s32)g_params.shading_mode, g_params.show_normals, g_params.show_skybox, g_params.show_gizmos);
         
         update_ui (delta_time);
 		update_console(delta_time);

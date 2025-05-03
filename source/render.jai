@@ -1,3 +1,8 @@
+//light_pos: Vector3_GLfloat = Vector3_GLfloat.{0.0, 0.0, 0.0};
+light_transform: *TG_RigidTransform_t;
+
+g_gizmo_shader: GLuint;
+g_gizmo_vao, g_gizmo_vbo  : GLuint;
 #scope_file
 
 g_shader: GLuint;
@@ -280,11 +285,48 @@ draw_line :: (start : Vector3, end : Vector3, start_color : Vector4, end_color :
 	glDrawArrays (GL_LINES, 0, 2);
 }
 
-draw_cube :: (position: Vector3) {
+qxdir :: (q: Vector4) -> Vector3 {
+    return .{ q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z, (q.x*q.y + q.z*q.w) * 2, (q.z*q.x - q.y*q.w) * 2 };
+}
+qydir :: (q: Vector4) -> Vector3 {
+    return .{ (q.x*q.y - q.z*q.w) * 2, q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z, (q.y*q.z + q.x*q.w) * 2 };
+}
+qzdir :: (q: Vector4) -> Vector3 {
+    return .{ (q.z*q.x + q.y*q.w) * 2, (q.y*q.z - q.x*q.w) * 2, q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z };
+}
+
+get_transform_matrix :: (transform: *TG_RigidTransform_t, static_transform: Matrix4) -> Matrix4 {
+    position: TG_Float3;
+    orientation: TG_Float4;
+    scale: TG_Float3;
+
+    TG_GetRigidTransformPosition(transform, *position);
+    TG_GetRigidTransformOrientation(transform, *orientation);
+    TG_GetRigidTransformScale(transform, *scale);
+
+    position_vector := Vector3.{position.x, position.y, position.z};
+    orientation_vector := Vector4.{orientation.x, orientation.y, orientation.z, orientation.w};
+    scale_vector := Vector3.{scale.x, scale.y, scale.z};
+
+    // TODO(Oskar): Continue here
+    x_axis := qxdir(orientation_vector) * scale_vector.x;
+    y_axis := qydir(orientation_vector) * scale_vector.y;
+    z_axis := qzdir(orientation_vector) * scale_vector.z;
+
+    matrix: Matrix4;
+    matrix.v[0] = .{x_axis.x, y_axis.x, z_axis.x, position_vector.x};
+    matrix.v[1] = .{x_axis.y, y_axis.y, z_axis.y, position_vector.y};
+    matrix.v[2] = .{x_axis.z, y_axis.z, z_axis.z, position_vector.z};
+    matrix.v[3] = .{0, 0, 0, 1};
+
+    return matrix * static_transform;
+}
+
+draw_cube :: (transform: *TG_RigidTransform_t) {
     glBindVertexArray(g_cube_vao);
     glUseProgram(g_cube_shader);
 
-    model_matrix := make_translation_matrix4(position) * make_scale_matrix4(Vector3.{0.2, 0.2, 0.2});
+    model_matrix := get_transform_matrix(transform, Matrix4_Identity);
 
     glUniformMatrix4fv (glGetUniformLocation (g_cube_shader, "u_View_Projection_Matrix"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
 	glUniformMatrix4fv (glGetUniformLocation (g_cube_shader, "u_Model_Matrix"), 1, GL_TRUE, *model_matrix.coef[0][0]);
@@ -312,6 +354,10 @@ init_buffers :: (mdl_model: Model) {
 		return;
 
     g_skybox_shader, ok = create_shader_program(SKYBOX_VERTEX_SHADER, SKYBOX_FRAGMENT_SHADER);
+    if !ok
+        return;
+
+    g_gizmo_shader, ok = create_shader_program(GIZMO_VERTEX_SHADER, GIZMO_FRAGMENT_SHADER);
     if !ok
         return;
 
@@ -417,6 +463,26 @@ init_buffers :: (mdl_model: Model) {
 
     glBindVertexArray (0);
 	glBindBuffer (GL_ARRAY_BUFFER, 0);
+
+    // Gizmo
+    glGenVertexArrays (1, *g_gizmo_vao);
+	glBindVertexArray (g_gizmo_vao);
+    glGenBuffers (1, *g_gizmo_vbo);
+	glBindBuffer (GL_ARRAY_BUFFER, g_gizmo_vbo);
+    glBufferData (GL_ARRAY_BUFFER, 0, null, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray (0);
+	glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, size_of (TG_GeometryVertex), cast (*void) 0);
+	glEnableVertexAttribArray (1);
+	glVertexAttribPointer (1, 3, GL_FLOAT, GL_FALSE, size_of (TG_GeometryVertex), cast (*void) size_of (TG_Float3));
+    glEnableVertexAttribArray (2);
+	glVertexAttribPointer (2, 4, GL_FLOAT, GL_FALSE, size_of (TG_GeometryVertex), cast (*void) (size_of (TG_Float3) * 2));
+
+    light_transform = TG_CreateRigidTransform();
+    position := TG_Float3.{5.0, 5.0, 0.0};
+    TG_SetRigidTransformPosition(light_transform, *position);
+
+    scale := TG_Float3.{0.2, 0.2, 0.2};
+    TG_SetRigidTransformScale(light_transform, *scale);
 }
 
 update_buffers :: (mdl_model: Model) {
@@ -446,13 +512,13 @@ update_buffers :: (mdl_model: Model) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[0].skin_width, mdl_model.skins[0].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[0].skin_data.data);
 }
 
-render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, rotate: bool, angle: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool, show_skybox: bool) {
+render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspect: float, anim_index: int, skin_index: int, shading_mode: s32, show_normals: bool, show_skybox: bool, show_gizmos: bool) {
     // glEnable(GL_CULL_FACE);
     // glCullFace(GL_FRONT);
     // glEnable(GL_MULTISAMPLE);
     // glFrontFace(GL_CCW);
 
-    lightPos := float32.[5.0, 5.0, 0.0];
+    // _lightPos := float32.[light_pos.x, light_pos.y, light_pos.z];
     lightColor := float32.[1.0, 1.0, 1.0];
 
     if mdl_model.animations.count > 0 {
@@ -478,22 +544,18 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, mdl_model.skins[skin_index].skin_width, mdl_model.skins[skin_index].skin_height, 0, GL_RGB, GL_UNSIGNED_BYTE, mdl_model.skins[skin_index].skin_data.data);
 
-        r1: Quaternion;
-        r2: Quaternion;
-        if !rotate {
-            angle = 0;
-        }  
-
-        set_from_axis_and_angle(*r1, 0, 1, 0, angle * PI / 180.0);
-        set_from_axis_and_angle(*r2, 1, 0, 0, -90.0 * PI / 180.0);    
-        model_matrix := rotation_matrix(Matrix4, r1*r2) * make_translation_matrix4(Vector3.{0.0, 0.0, 2.0}) * make_scale_matrix4(Vector3.{0.1, 0.1, 0.1});
+        model_matrix := get_transform_matrix(mdl_model.transform, mdl_model.static_transform);
 
         glUniformMatrix4fv(glGetUniformLocation(g_shader, "view_projection"), 1, GL_TRUE, *g_camera.view_projection_matrix.coef[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(g_shader, "model"), 1, GL_TRUE, *model_matrix.coef[0][0]);
         glUniform1f(glGetUniformLocation(g_shader, "interpolation"), anim_lerp);
         glUniform1i(glGetUniformLocation(g_shader, "shading_mode"), shading_mode);
 
-        glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, lightPos.data);
+        position: TG_Float3;
+        TG_GetRigidTransformPosition(light_transform, *position);
+        light_position := float32.[position.x, position.y, position.z];
+
+        glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, light_position.data);
         glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
 
         glActiveTexture(GL_TEXTURE0);
@@ -517,7 +579,11 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
         glBindVertexArray(0);
     }
 
-    draw_cube(Vector3.{lightPos[0], lightPos[1], lightPos[2]});
+    draw_cube(light_transform);
+
+    if show_gizmos {
+        gizmo_render(mdl_model);
+    }
 
     // Render skybox
     if show_skybox {
@@ -766,6 +832,47 @@ uniform samplerCube skybox;
 void main()
 {
     Frag_Color = texture(skybox, TexCoords);
+}
+
+GLSL
+
+GIZMO_VERTEX_SHADER :: #string GLSL
+
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+layout (location = 2) in vec4 aColor;
+
+out vec4 Color;
+out vec3 World;
+out vec3 Normal;
+
+uniform mat4 u_View_Projection_Matrix;
+uniform mat4 u_Model_Matrix;
+
+void main()
+{
+    gl_Position = u_View_Projection_Matrix * u_Model_Matrix * vec4(aPos, 1);
+    Color = aColor;
+    World = aPos;
+    Normal = aNormal;
+}
+
+GLSL
+
+GIZMO_FRAGMENT_SHADER :: #string GLSL
+
+in vec4 Color;
+in vec3 World;
+in vec3 Normal;
+
+uniform vec3 u_eye;
+
+out vec4 Frag_Color;
+
+void main()
+{
+    vec3 light = vec3(1) * max(dot(Normal, normalize(u_eye - World)), 0.50) + 0.25;
+    Frag_Color = Color * vec4(light, 1.0);
 }
 
 GLSL
