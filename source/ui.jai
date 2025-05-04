@@ -13,6 +13,7 @@ Shading_Mode :: enum s32 {
 g_params : struct {
 	theme: getrect.Overall_Theme;
 	controls_subwindow: getrect.Subwindow_Info;
+	details_subwindow: getrect.Subwindow_Info;
 	subwindows_initialized := false;
     mdl_names: []string;
     mdl_index: s32;
@@ -58,11 +59,210 @@ update_ui :: (delta_time: float) {
 		controls_subwindow.draw                 = draw_controls_subwindow;
 		controls_subwindow.title_text           = "Controls";
 
+		r2 := getrect.get_rect(w/2.0, pad*2, w/3.0, h*0.8);
+		details_subwindow.rect 				= r2;
+		details_subwindow.draw              = draw_details_subwindow;
+		details_subwindow.title_text        = "Details";
+
 		subwindows_initialized = true;
 	}
 
 	if controls_subwindow.open {
 		subwindow_state := getrect.add_subwindow(*controls_subwindow, *subwindow_theme);
+	}
+
+	if details_subwindow.open {
+		subwindow_state := getrect.add_subwindow(*details_subwindow, *subwindow_theme);
+	}
+}
+
+draw_details_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrect.Rect, data: *void) {
+	using g_params;
+
+	theme_proc := getrect.default_theme_procs[xx getrect.Default_Themes.Bentonite];
+	theme = theme_proc();
+	getrect.set_default_theme(theme);
+
+	// Init themes
+	label_theme := theme.label_theme;
+	label_theme.font = g_font;
+	checkbox_theme := theme.checkbox_theme;
+	checkbox_theme.font = g_checkbox_font;
+	slider_theme := theme.slider_theme;
+	slider_theme.foreground.font = g_slider_font;
+
+	dropdown_theme := theme.dropdown_theme;
+	dropdown_theme.theme_for_current_value.font = g_dropdown_font;
+	dropdown_theme.theme_for_each_choice.font = g_dropdown_font;
+	dropdown_theme.theme_for_current_choice.font = g_dropdown_font;
+
+	w := window_rect.w;
+	h := window_rect.h;
+
+	k := g_current_window_height / 45.0;
+	pad := cast (float) g_font.character_height * 1.0;
+
+	dropdown_offset := window_rect.w * 0.15;
+	dropdown_width  := window_rect.w * 0.2;
+	
+	r := window_rect;
+	r.h = g_font.character_height * 1.1;
+    r.y = window_rect.y + window_rect.h - r.h - pad;
+
+	longest_label_width := simp.prepare_text (g_font, "Triangle Count:");
+
+	// TODO(Oskar): Add something inside model to indicate initiation or not.
+	if !(g_model.animations.count > 0) {
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "No model loaded.");
+		r.w = xx label_width;
+		getrect.label (r, "No model loaded.", *label_theme);
+		return;
+	}
+
+	// Model Name
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Model:");
+		r.w = xx label_width;
+		getrect.label (r, "Model:", *label_theme);
+
+		r.x += longest_label_width;
+		defer r.x -= longest_label_width;
+
+		r.w = window_rect.w - longest_label_width - pad * 2;
+		s := tprint("%", mdl_names[mdl_index]);
+		getrect.label (r, s, *label_theme);
+	}
+	r.y -= r.h + pad;
+
+	// Model Vertex Count
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Vertex Count:");
+		r.w = xx label_width;
+		getrect.label (r, "Vertex Count:", *label_theme);
+
+		r.x += longest_label_width;
+		defer r.x -= longest_label_width;
+
+		vertex_count := g_model.animations[0].frames[0].vertices.count * 3;
+
+		r.w = window_rect.w - longest_label_width - pad * 2;
+		s := tprint("%", vertex_count);
+		getrect.label (r, s, *label_theme);
+	}
+	r.y -= r.h + pad;
+
+	// Model Triangle Count
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Triangle Count:");
+		r.w = xx label_width;
+		getrect.label (r, "Triangle Count:", *label_theme);
+
+		r.x += longest_label_width;
+		defer r.x -= longest_label_width;
+
+		triangle_count := g_model.animations[0].frames[0].vertices.count;
+
+		r.w = window_rect.w - longest_label_width - pad * 2;
+		s := tprint("%", triangle_count);
+		getrect.label (r, s, *label_theme);
+	}
+	r.y -= r.h + pad;
+
+	// Model Number of Frames
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Frame Count: ");
+		r.w = xx label_width;
+		getrect.label (r, "Frame Count:", *label_theme);
+
+		r.x += longest_label_width;
+		defer r.x -= longest_label_width;
+
+		number_of_frames := 0;
+		for g_model.animations {
+			number_of_frames += it.frames.count;
+		}
+
+		r.w = window_rect.w - longest_label_width - pad * 2;
+		s := tprint("%", number_of_frames);
+		getrect.label (r, s, *label_theme);
+	}
+	r.y -= r.h + pad;
+
+	// Model Number of Skins
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Skin Count:");
+		r.w = xx label_width;
+		getrect.label (r, "Skin Count:", *label_theme);
+
+		r.x += longest_label_width;
+		defer r.x -= longest_label_width;
+
+		r.w = window_rect.w - longest_label_width - pad * 2;
+		s := tprint("%", g_model.skins.count);
+		getrect.label (r, s, *label_theme);
+	}
+	r.y -= r.h + pad;
+
+	// Model Position
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Position:");
+		r.w = xx label_width;
+		getrect.label (r, "Position:", *label_theme);
+
+		r.x += longest_label_width;
+		defer r.x -= longest_label_width;
+
+		position: TG_Float3;
+		TG_GetRigidTransformPosition(g_model.transform, *position);
+
+		r.w = window_rect.w - longest_label_width - pad * 2;
+		s := tprint("%, %, %", position.x, position.y, position.z);
+		getrect.label (r, s, *label_theme);
+	}
+	r.y -= r.h + pad;
+
+	// Model Rotation
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Rotation:");
+		r.w = xx label_width;
+		getrect.label (r, "Rotation:", *label_theme);
+
+		r.x += longest_label_width;
+		defer r.x -= longest_label_width;
+
+		rotation: TG_Float4;
+		TG_GetRigidTransformOrientation(g_model.transform, *rotation);
+
+		r.w = window_rect.w - longest_label_width - pad * 2;
+		s := tprint("%, %, %", rotation.x, rotation.y, rotation.z);
+		getrect.label (r, s, *label_theme);
+	}
+	r.y -= r.h + pad;
+
+	// Model Scale
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Scale:");
+		r.w = xx label_width;
+		getrect.label (r, "Scale:", *label_theme);
+
+		r.x += longest_label_width;
+		defer r.x -= longest_label_width;
+
+		scale: TG_Float3;
+		TG_GetRigidTransformScale(g_model.transform, *scale);
+
+		r.w = window_rect.w - longest_label_width - pad * 2;
+		s := tprint("%, %, %", scale.x, scale.y, scale.z);
+		getrect.label (r, s, *label_theme);
 	}
 }
 

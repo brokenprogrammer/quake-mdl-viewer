@@ -358,6 +358,11 @@ main :: () {
 			g_params.controls_subwindow.open = !g_params.controls_subwindow.open;
 		}
 
+		// Details toggle
+		if is_key_pressed((.F3)) {
+			g_params.details_subwindow.open = !g_params.details_subwindow.open;
+		}
+
         update_frame(delta_time, g_pak_files);
 
         time: float = running_time;//cast(float) SDL_GetTicks() / 1000;
