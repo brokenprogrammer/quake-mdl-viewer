@@ -558,6 +558,9 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
         glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, light_position.data);
         glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
 
+        camera_position := float32.[g_camera.position.x, g_camera.position.y, g_camera.position.z];
+        glUniform3fv(glGetUniformLocation(g_shader, "viewPos"), 1, camera_position.data);
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, g_texture);
         glUniform1i(glGetUniformLocation(g_shader, "texture1"), 0);
