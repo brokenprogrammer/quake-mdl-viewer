@@ -551,7 +551,7 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
         // TODO(Oskar): What if we dont have specular map?
         glUniform1i(glGetUniformLocation(g_shader, "material.diffuse"), 0);
         glUniform1i(glGetUniformLocation(g_shader, "material.specular"), 0);
-        glUniform1f(glGetUniformLocation(g_shader, "material.shininess"), 32.0);
+        glUniform1f(glGetUniformLocation(g_shader, "material.shininess"), 1.0);
 
         // Directional Light
         {
@@ -582,11 +582,6 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
             glUniform1f(glGetUniformLocation(g_shader, "pointLights[0].constant"), 1.0);
             glUniform1f(glGetUniformLocation(g_shader, "pointLights[0].linear"), 0.09);
             glUniform1f(glGetUniformLocation(g_shader, "pointLights[0].quadratic"), 0.032);
-            
-
-            // TODO(Oskar): Remove unused uniforms from shader..
-            // glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, light_position.data);
-            // glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
         }
 
 
@@ -680,11 +675,7 @@ in vec3 FragPos;
 out vec4 FragColor;
 
 uniform sampler2D texture1;
-
-uniform vec3 lightPos; 
 uniform vec3 viewPos; 
-uniform vec3 lightColor;
-
 uniform int shading_mode;
 
 struct Material {
@@ -782,19 +773,6 @@ void main() {
     }
 
     FragColor = vec4(result, 1.0);
-
-    // // ambient
-    // float ambientStrength = 0.1;
-    // vec3 ambient = ambientStrength * lightColor;
-
-    // // diffuse 
-    // vec3 norm = normalize(Normal);
-    // vec3 lightDir = normalize(lightPos - FragPos);
-    // float diff = max(dot(norm, lightDir), 0.0);
-    // vec3 diffuse = diff * lightColor;
-
-    // vec4 result = vec4(ambient + diffuse, 1.0) * objectColor;
-    // FragColor = result;
 }
 GLSL
 
