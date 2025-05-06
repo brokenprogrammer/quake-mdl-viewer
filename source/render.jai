@@ -518,9 +518,6 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
     // glEnable(GL_MULTISAMPLE);
     // glFrontFace(GL_CCW);
 
-    // _lightPos := float32.[light_pos.x, light_pos.y, light_pos.z];
-    lightColor := float32.[1.0, 1.0, 1.0];
-
     if mdl_model.animations.count > 0 {
         glUseProgram(g_shader);
         
@@ -568,12 +565,30 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
             glUniform3fv(glGetUniformLocation(g_shader, "dirLight.specular"), 1, specular.data);
         }
 
-        position: TG_Float3;
-        TG_GetRigidTransformPosition(light_transform, *position);
-        light_position := float32.[position.x, position.y, position.z];
+        // Point light 1
+        {
+            position: TG_Float3;
+            TG_GetRigidTransformPosition(light_transform, *position);
+            light_position := float32.[position.x, position.y, position.z];
+            
+            ambient := float32.[0.05, 0.05, 0.05];
+            diffuse := float32.[0.8, 0.8, 0.8];
+            specular := float32.[1.0, 1.0, 1.0];
+            glUniform3fv(glGetUniformLocation(g_shader, "pointLights[0].position"), 1, light_position.data);
+            glUniform3fv(glGetUniformLocation(g_shader, "pointLights[0].ambient"), 1, ambient.data);
+            glUniform3fv(glGetUniformLocation(g_shader, "pointLights[0].diffuse"), 1, diffuse.data);
+            glUniform3fv(glGetUniformLocation(g_shader, "pointLights[0].specular"), 1, specular.data);
+            
+            glUniform1f(glGetUniformLocation(g_shader, "pointLights[0].constant"), 1.0);
+            glUniform1f(glGetUniformLocation(g_shader, "pointLights[0].linear"), 0.09);
+            glUniform1f(glGetUniformLocation(g_shader, "pointLights[0].quadratic"), 0.032);
+            
 
-        glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, light_position.data);
-        glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
+            // TODO(Oskar): Remove unused uniforms from shader..
+            // glUniform3fv(glGetUniformLocation(g_shader, "lightPos"), 1, light_position.data);
+            // glUniform3fv(glGetUniformLocation(g_shader, "lightColor"), 1, lightColor.data);
+        }
+
 
         camera_position := float32.[g_camera.position.x, g_camera.position.y, g_camera.position.z];
         glUniform3fv(glGetUniformLocation(g_shader, "viewPos"), 1, camera_position.data);
@@ -638,7 +653,7 @@ uniform mat4 model;
 uniform mat4 view_projection;
 uniform float interpolation;
 
-out vec2 TexCoord;
+out vec2 TexCoords;
 out vec3 Normal;
 out vec3 FragPos;
 
@@ -646,7 +661,7 @@ void main() {
     vec3 aPos = (aCurrentFramePos * (1.0 - interpolation)) + (aNextFramePos * interpolation);
     vec3 aNormal = (aCurrentFrameNormal * (1.0 - interpolation)) + (aNextFrameNormal * interpolation);
 
-    TexCoord = aTexCoord;
+    TexCoords = aTexCoord;
     Normal = mat3(transpose(inverse(model))) * aNormal;
     FragPos = vec3(model * vec4(aPos, 1.0));
     gl_Position = view_projection * vec4(FragPos, 1.0);
@@ -658,7 +673,7 @@ MDL_FRAGMENT_SHADER :: #string GLSL
 #define SHADING_TEXTURE 1
 #define SHADING_NORMAL 2
 
-in vec2 TexCoord;
+in vec2 TexCoords;
 in vec3 Normal;
 in vec3 FragPos;
 
@@ -699,7 +714,7 @@ struct PointLight {
     vec3 diffuse;
     vec3 specular;
 };  
-#define NR_POINT_LIGHTS 4  
+#define NR_POINT_LIGHTS 1
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir) {
@@ -746,16 +761,16 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 } 
 
 void main() {
-    vec4 objectColor = vec4(1.0);//texture(texture1, TexCoord);
+    vec4 objectColor = vec4(1.0);//texture(texture1, TexCoords);
 
     if (shading_mode == SHADING_TEXTURE) {
-        objectColor = texture(texture1, TexCoord);
+        objectColor = texture(texture1, TexCoords);
     } else if (shading_mode == SHADING_SOLID) {
         objectColor = vec4(0.5, 0.5, 0.5, 1.0);
     } else if (shading_mode == SHADING_NORMAL) {
         objectColor = vec4(Normal.xyz * 0.5 + 0.5, 1.0);
     } else {
-        objectColor = texture(texture1, TexCoord);
+        objectColor = texture(texture1, TexCoords);
     }
 
     vec3 norm = normalize(Normal);
