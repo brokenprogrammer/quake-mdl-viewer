@@ -108,12 +108,15 @@ gizmo_render :: (model: Model) {
     // TG_SetRigidTransformPosition(light_transform, *position);
     
     // Make the gizmo manipulate the transform
-    if TG_TransformGizmo(g_gizmo_context, "light-position", light_transform) {
-        // If the transform was manipulated, update our light position
-        // TG_GetRigidTransformPosition(light_transform, *position);
-        // light_pos.x = position.x;
-        // light_pos.y = position.y;
-        // light_pos.z = position.z;
+    for g_light_transforms {
+        name := tprint("light-position-%", it_index);
+        if TG_TransformGizmo(g_gizmo_context, name.data, it) {
+            // If the transform was manipulated, update our light position
+            // TG_GetRigidTransformPosition(light_transform, *position);
+            // light_pos.x = position.x;
+            // light_pos.y = position.y;
+            // light_pos.z = position.z;
+        }
     }
 
     if model.animations.count > 0 {

@@ -255,3 +255,16 @@ command_load_model :: (name: string) {
         }
     }
 } @RegisterCommand
+
+command_add_point_light :: () {
+    add_point_light(g_camera.position);
+} @RegisterCommand
+
+command_list_point_lights :: () {
+    for g_light_transforms {
+        position: TG_Float3;
+        TG_GetRigidTransformPosition(it, *position);
+
+        command_output("[%]: %", it_index, position);
+    }
+} @RegisterCommand

@@ -1,5 +1,5 @@
-//light_pos: Vector3_GLfloat = Vector3_GLfloat.{0.0, 0.0, 0.0};
-light_transform: *TG_RigidTransform_t;
+MAX_POINT_LIGHTS :: 16;
+g_light_transforms: [..]*TG_RigidTransform_t;
 
 g_gizmo_shader: GLuint;
 g_gizmo_vao, g_gizmo_vbo  : GLuint;
@@ -262,6 +262,21 @@ create_skybox :: (image_faces: []string) -> GLuint {
 
 #scope_export
 
+add_point_light :: (position: Vector3) {
+    if g_light_transforms.count + 1 >= MAX_POINT_LIGHTS {
+        log("Max number of point lights reached!", flags=.WARNING);
+        return;
+    }
+
+    rigid_transform := TG_CreateRigidTransform();
+    position_tg := TG_Float3.{position.x, position.y, position.z};
+    TG_SetRigidTransformPosition(rigid_transform, *position_tg);
+
+    scale := TG_Float3.{0.2, 0.2, 0.2};
+    TG_SetRigidTransformScale(rigid_transform, *scale);
+    array_add(*g_light_transforms, rigid_transform);
+}
+
 draw_line :: inline (start : Vector3, end : Vector3, color : Vector4)
 {
 	draw_line (start, end, color, color);
@@ -477,12 +492,14 @@ init_buffers :: (mdl_model: Model) {
     glEnableVertexAttribArray (2);
 	glVertexAttribPointer (2, 4, GL_FLOAT, GL_FALSE, size_of (TG_GeometryVertex), cast (*void) (size_of (TG_Float3) * 2));
 
-    light_transform = TG_CreateRigidTransform();
-    position := TG_Float3.{5.0, 5.0, 0.0};
-    TG_SetRigidTransformPosition(light_transform, *position);
+    add_point_light(.{5.0, 5.0, 5.0});
+    // initial_light_transform := TG_CreateRigidTransform();
+    // position := TG_Float3.{5.0, 5.0, 0.0};
+    // TG_SetRigidTransformPosition(initial_light_transform, *position);
 
-    scale := TG_Float3.{0.2, 0.2, 0.2};
-    TG_SetRigidTransformScale(light_transform, *scale);
+    // scale := TG_Float3.{0.2, 0.2, 0.2};
+    // TG_SetRigidTransformScale(initial_light_transform, *scale);
+    // array_add(*light_transform, initial_light_transform);
 }
 
 update_buffers :: (mdl_model: Model) {
@@ -565,23 +582,24 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
             glUniform3fv(glGetUniformLocation(g_shader, "dirLight.specular"), 1, specular.data);
         }
 
-        // Point light 1
-        {
+        // Point lights
+        glUniform1i(glGetUniformLocation(g_shader, "number_of_pointlights"), xx g_light_transforms.count);
+        for g_light_transforms {
             position: TG_Float3;
-            TG_GetRigidTransformPosition(light_transform, *position);
+            TG_GetRigidTransformPosition(it, *position);
             light_position := float32.[position.x, position.y, position.z];
             
             ambient := float32.[0.05, 0.05, 0.05];
             diffuse := float32.[0.8, 0.8, 0.8];
             specular := float32.[1.0, 1.0, 1.0];
-            glUniform3fv(glGetUniformLocation(g_shader, "pointLights[0].position"), 1, light_position.data);
-            glUniform3fv(glGetUniformLocation(g_shader, "pointLights[0].ambient"), 1, ambient.data);
-            glUniform3fv(glGetUniformLocation(g_shader, "pointLights[0].diffuse"), 1, diffuse.data);
-            glUniform3fv(glGetUniformLocation(g_shader, "pointLights[0].specular"), 1, specular.data);
+            glUniform3fv(glGetUniformLocation(g_shader, tprint("pointLights[%].position", it_index).data), 1, light_position.data);
+            glUniform3fv(glGetUniformLocation(g_shader, tprint("pointLights[%].ambient", it_index).data), 1, ambient.data);
+            glUniform3fv(glGetUniformLocation(g_shader, tprint("pointLights[%].diffuse", it_index).data), 1, diffuse.data);
+            glUniform3fv(glGetUniformLocation(g_shader, tprint("pointLights[%].specular", it_index).data), 1, specular.data);
             
-            glUniform1f(glGetUniformLocation(g_shader, "pointLights[0].constant"), 1.0);
-            glUniform1f(glGetUniformLocation(g_shader, "pointLights[0].linear"), 0.09);
-            glUniform1f(glGetUniformLocation(g_shader, "pointLights[0].quadratic"), 0.032);
+            glUniform1f(glGetUniformLocation(g_shader, tprint("pointLights[%].constant", it_index).data), 1.0);
+            glUniform1f(glGetUniformLocation(g_shader, tprint("pointLights[%].linear", it_index).data), 0.09);
+            glUniform1f(glGetUniformLocation(g_shader, tprint("pointLights[%].quadratic", it_index).data), 0.032);
         }
 
 
@@ -609,7 +627,9 @@ render :: (mdl_model: Model, frame: int, frame_next: int, anim_lerp: float, aspe
         glBindVertexArray(0);
     }
 
-    draw_cube(light_transform);
+    for g_light_transforms {
+        draw_cube(it);
+    }
 
     if show_gizmos {
         gizmo_render(mdl_model);
@@ -705,7 +725,8 @@ struct PointLight {
     vec3 diffuse;
     vec3 specular;
 };  
-#define NR_POINT_LIGHTS 1
+#define NR_POINT_LIGHTS 16
+uniform int number_of_pointlights;
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir) {
@@ -768,7 +789,7 @@ void main() {
     vec3 viewDir = normalize(viewPos - FragPos);
 
     vec3 result = CalcDirLight(dirLight, norm, viewDir);
-    for (int i = 0; i < NR_POINT_LIGHTS; ++i) {
+    for (int i = 0; i < number_of_pointlights; ++i) {
         result += CalcPointLight(pointLights[i], norm, FragPos, viewDir);
     }
 
