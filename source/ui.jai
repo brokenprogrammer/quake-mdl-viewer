@@ -299,6 +299,18 @@ draw_controls_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrec
 	r.h = g_font.character_height * 1.1;
     r.y = window_rect.y + window_rect.h - r.h - pad;
 
+	// Model and animation controls
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Model & Animation Controls");
+		r.w = xx label_width;
+		getrect.label (r, "Model & Animation Controls", *label_theme);
+		
+		r.x += label_width;
+		defer r.x -= label_width;
+	}
+	r.y -= r.h + pad;
+
     // Model selection
 	{
 		r.x = window_rect.x + pad;
@@ -426,4 +438,32 @@ draw_controls_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrec
 			*dropdown_theme
 		);
 	}
+	r.y -= r.h + pad;
+
+	// Directional light header
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Directional Light Controls");
+		r.w = xx label_width;
+		getrect.label (r, "Directional Light Controls", *label_theme);
+		
+		r.x += label_width;
+		defer r.x -= label_width;
+	}
+	r.y -= r.h + pad;
+
+	// Directional light direction
+	{
+		// TODO(Oskar): Sliders can take up full width just as dropdowns..
+		r.x = window_rect.x + pad;
+		r.w = w * 0.1 + xx simp.prepare_text(g_slider_font, " Direction X: 10.000 ");
+		getrect.slider(r, *animation_speed_in_fps, -10.0, 10.0, -0.2, *slider_theme, "Direction X: ", "");
+		r.y -= r.h + pad;
+		getrect.slider(r, *animation_speed_in_fps, -10.0, 10.0, -0.2, *slider_theme, "Direction Y: ", "");
+		r.y -= r.h + pad;
+		getrect.slider(r, *animation_speed_in_fps, -10.0, 10.0, -0.2, *slider_theme, "Direction Z: ", "");
+	}
+	r.y -= r.h + pad;
+
+	// TODO(Oskar): Buttons for color selection.. Open new window and select colors.
 }
