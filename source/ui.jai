@@ -14,7 +14,9 @@ g_params : struct {
 	theme: getrect.Overall_Theme;
 	controls_subwindow: getrect.Subwindow_Info;
 	details_subwindow: getrect.Subwindow_Info;
+	directional_light_ambient_subwindow: getrect.Subwindow_Info;
 	subwindows_initialized := false;
+	controls_scroll_value: float;
     mdl_names: []string;
     mdl_index: s32;
 	mdl_index_last_frame: s32;
@@ -49,7 +51,7 @@ update_ui :: (delta_time: float) {
 	getrect.ui_per_frame_update (g_window, w, h, current_time);
 
 	subwindow_theme := theme.subwindow_theme;
-
+	
     k := g_current_window_height / 45.0;
 	pad := cast (float) g_font.character_height * 1.6;
 
@@ -63,6 +65,19 @@ update_ui :: (delta_time: float) {
 		details_subwindow.rect 				= r2;
 		details_subwindow.draw              = draw_details_subwindow;
 		details_subwindow.title_text        = "Details";
+		details_subwindow.open = false;
+
+		// Directional light ambient color picker window
+		{
+			k := g_current_window_height * .1;
+			aspect := getrect.get_desired_aspect_ratio(*theme.color_picker_theme);
+			r = getrect.get_rect(6.5*k, 3*k, 3*k, 3*k/aspect);
+			directional_light_ambient_subwindow.rect = r;
+			directional_light_ambient_subwindow.draw = draw_directional_light_ambient_subwindow;
+			directional_light_ambient_subwindow.title_text = "Directional Ambient Color";
+			directional_light_ambient_subwindow.fixed_aspect_ratio = aspect;
+			directional_light_ambient_subwindow.open = false;
+		}
 
 		subwindows_initialized = true;
 	}
@@ -74,6 +89,10 @@ update_ui :: (delta_time: float) {
 	if details_subwindow.open {
 		subwindow_state := getrect.add_subwindow(*details_subwindow, *subwindow_theme);
 	}
+
+	if directional_light_ambient_subwindow.open {
+		subwindow_state := getrect.add_subwindow(*directional_light_ambient_subwindow, *subwindow_theme);
+	} 
 }
 
 draw_details_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrect.Rect, data: *void) {
@@ -276,10 +295,15 @@ draw_controls_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrec
 	// Init themes
 	label_theme := theme.label_theme;
 	label_theme.font = g_font;
+	button_theme := theme.button_theme;
+	button_theme.font = g_font;
 	checkbox_theme := theme.checkbox_theme;
 	checkbox_theme.font = g_checkbox_font;
 	slider_theme := theme.slider_theme;
 	slider_theme.foreground.font = g_slider_font;
+
+	scrollable_region_theme := theme.scrollable_region_theme;
+	scrollable_region_theme.region_background.shape.rounding_flags = 0;
 
 	dropdown_theme := theme.dropdown_theme;
 	dropdown_theme.theme_for_current_value.font = g_dropdown_font;
@@ -295,9 +319,13 @@ draw_controls_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrec
 	dropdown_offset := window_rect.w * 0.15;
 	dropdown_width  := window_rect.w * 0.2;
 	
-	r := window_rect;
+	// r := window_rect;
+	region, inside := getrect.begin_scrollable_region(window_rect, *scrollable_region_theme);
+
+	r := inside;
 	r.h = g_font.character_height * 1.1;
     r.y = window_rect.y + window_rect.h - r.h - pad;
+	r.y += controls_scroll_value;
 
 	// Model and animation controls
 	{
@@ -465,5 +493,66 @@ draw_controls_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrec
 	}
 	r.y -= r.h + pad;
 
-	// TODO(Oskar): Buttons for color selection.. Open new window and select colors.
+	
+	// TODO(Oskar): Make the button open color selection windows
+	// hook up colors to be used in the renderer.
+
+	// Directional light ambient color
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Ambient Color: ");
+		r.w = xx label_width;
+		getrect.label (r, "Ambient Color: ", *label_theme);
+		
+		r.x += label_width;
+		defer r.x -= label_width;
+
+		r.w = window_rect.w - label_width - pad * 2;
+		pressed := getrect.button(r, "Open", *button_theme);
+	}
+	r.y -= r.h + pad;
+
+	// Directional light diffuse color
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Diffuse Color: ");
+		r.w = xx label_width;
+		getrect.label (r, "Diffuse Color: ", *label_theme);
+		
+		r.x += label_width;
+		defer r.x -= label_width;
+
+		r.w = window_rect.w - label_width - pad * 2;
+		pressed := getrect.button(r, "Open", *button_theme);
+	}
+	r.y -= r.h + pad;
+
+	// Directional light specular color
+	{
+		r.x = window_rect.x + pad;
+		label_width := simp.prepare_text (g_font, "Specular Color: ");
+		r.w = xx label_width;
+		getrect.label (r, "Specular Color: ", *label_theme);
+		
+		r.x += label_width;
+		defer r.x -= label_width;
+
+		r.w = window_rect.w - label_width - pad * 2;
+		pressed := getrect.button(r, "Open", *button_theme);
+	}
+	r.y -= r.h + pad;
+
+	getrect.end_scrollable_region(region, inside.w, r.y, *controls_scroll_value);
+}
+
+draw_directional_light_ambient_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrect.Rect, data: *void) {
+	using g_params;
+
+	theme_proc := getrect.default_theme_procs[xx getrect.Default_Themes.Bentonite];
+	theme = theme_proc();
+	getrect.set_default_theme(theme);
+
+	color_picker_theme := *theme.color_picker_theme;
+	picked_color := Vector3.{ 1.0, 1.0, 1.0 };
+	applied := getrect.color_picker(window_rect, *picked_color, color_picker_theme);
 }
