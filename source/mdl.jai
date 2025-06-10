@@ -150,11 +150,11 @@ load_mdl_texture_data :: (mdl_file: File, mdl_header: MDLHeader, color_palette: 
             return images, false;
         }
 
-        if group != TEXTURE_TYPE_SINGLE {
-            log("Unsupported texture group type, this application currently only supports single textures.", flags=.ERROR);
-            mdl_cleanup_textures(images);
-            return images, false;
-        }
+        // if group != TEXTURE_TYPE_SINGLE {
+        //     log("Unsupported texture group type, this application currently only supports single textures.", flags=.ERROR);
+        //     mdl_cleanup_textures(images);
+        //     return images, false;
+        // }
 
         texture_number_of_channels := 3;
         texture_data_size := mdl_header.tex_width * mdl_header.tex_height; 
@@ -238,11 +238,11 @@ load_mdl_frames :: (mdl_file: File, mdl_header: MDLHeader) ->[]MDLFrameAndVertic
             return .[], false;
         }
 
-        if group != FRAME_TYPE_SIMPLE {
-            log("Unsupported frame group type, this application currently only supports simple frames.", flags=.ERROR);
-            mdl_cleanup_frames_and_vertices(frames);
-            return .[], false;
-        }
+        // if group != FRAME_TYPE_SIMPLE {
+        //     log("Unsupported frame group type, this application currently only supports simple frames.", flags=.ERROR);
+        //     mdl_cleanup_frames_and_vertices(frames);
+        //     return .[], false;
+        // }
 
         mdl_frame: MDLFrame;
         read_result = file_read(mdl_file, *mdl_frame, size_of(MDLFrame));
@@ -289,14 +289,14 @@ load_mdl :: (mdl_file: File) -> MDLModel, bool {
     md2_logger_data := project_setup_logger("[MDL Loader]");
     defer project_cleanup_logger(md2_logger_data);
 
-    mdl_header, mdl_header_success := load_mdl_header(mdl_file);
-    if !mdl_header_success {
-        return .{}, false;
-    }
-
     color_palette := default_mdl_color_palette;
     if mdl_color_palette_initialized {
         color_palette = mdl_color_palette;
+    }
+
+    mdl_header, mdl_header_success := load_mdl_header(mdl_file);
+    if !mdl_header_success {
+        return .{}, false;
     }
 
     mdl_model : MDLModel;
@@ -341,15 +341,15 @@ load_mdl :: (pak_file: PakFile, pak_files: []PakFile) -> MDLModel, bool {
     md2_logger_data := project_setup_logger("[MDL Loader]");
     defer project_cleanup_logger(md2_logger_data);    
 
+    if !mdl_color_palette_initialized {
+        mdl_color_palette_initialized = true;
+        mdl_color_palette = load_mdl_colorpalette(pak_files);
+    }
+
     // NOTE(Oskar): Assume that file offset is in right location if this succeeds.
     mdl_header, mdl_header_success := load_mdl_header(pak_file);
     if !mdl_header_success {
         return .{}, false;
-    }
-
-    if !mdl_color_palette_initialized {
-        mdl_color_palette_initialized = true;
-        mdl_color_palette = load_mdl_colorpalette(pak_files);
     }
 
     mdl_model : MDLModel;
