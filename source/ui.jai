@@ -15,6 +15,8 @@ g_params : struct {
 	controls_subwindow: getrect.Subwindow_Info;
 	details_subwindow: getrect.Subwindow_Info;
 	directional_light_ambient_subwindow: getrect.Subwindow_Info;
+	directional_light_diffuse_subwindow: getrect.Subwindow_Info;
+	directional_light_specular_subwindow: getrect.Subwindow_Info;
 	subwindows_initialized := false;
 	controls_scroll_value: float;
     mdl_names: []string;
@@ -33,6 +35,12 @@ g_params : struct {
 	show_gizmos := true;
 	interpolation_mode := Interpolation_Mode.LINEAR; // TODO(Oskar): Implement this later.
 	shading_mode := Shading_Mode.TEXTURE;
+
+	// Light
+	directional_light_direction := Vector3.{-0.2, -1.0, -0.3};
+	directional_light_ambient_color := Vector3.{0.05, 0.05, 0.05};
+	directional_light_diffuse_color := Vector3.{0.4, 0.4, 0.4};
+	directional_light_specular_color := Vector3.{0.5, 0.5, 0.5};
 };
 
 update_ui :: (delta_time: float) {
@@ -79,6 +87,30 @@ update_ui :: (delta_time: float) {
 			directional_light_ambient_subwindow.open = false;
 		}
 
+		// Directional light diffuse color picker window
+		{
+			k := g_current_window_height * .1;
+			aspect := getrect.get_desired_aspect_ratio(*theme.color_picker_theme);
+			r = getrect.get_rect(6.5*k, 3*k, 3*k, 3*k/aspect);
+			directional_light_diffuse_subwindow.rect = r;
+			directional_light_diffuse_subwindow.draw = draw_directional_light_diffuse_subwindow;
+			directional_light_diffuse_subwindow.title_text = "Directional Diffuse Color";
+			directional_light_diffuse_subwindow.fixed_aspect_ratio = aspect;
+			directional_light_diffuse_subwindow.open = false;
+		}
+
+		// Directional light specular color picker window
+		{
+			k := g_current_window_height * .1;
+			aspect := getrect.get_desired_aspect_ratio(*theme.color_picker_theme);
+			r = getrect.get_rect(6.5*k, 3*k, 3*k, 3*k/aspect);
+			directional_light_specular_subwindow.rect = r;
+			directional_light_specular_subwindow.draw = draw_directional_light_specular_subwindow;
+			directional_light_specular_subwindow.title_text = "Directional Specular Color";
+			directional_light_specular_subwindow.fixed_aspect_ratio = aspect;
+			directional_light_specular_subwindow.open = false;
+		}
+
 		subwindows_initialized = true;
 	}
 
@@ -92,7 +124,15 @@ update_ui :: (delta_time: float) {
 
 	if directional_light_ambient_subwindow.open {
 		subwindow_state := getrect.add_subwindow(*directional_light_ambient_subwindow, *subwindow_theme);
-	} 
+	}
+
+	if directional_light_diffuse_subwindow.open {
+		subwindow_state := getrect.add_subwindow(*directional_light_diffuse_subwindow, *subwindow_theme);
+	}
+
+	if directional_light_specular_subwindow.open {
+		subwindow_state := getrect.add_subwindow(*directional_light_specular_subwindow, *subwindow_theme);
+	}
 }
 
 draw_details_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrect.Rect, data: *void) {
@@ -485,11 +525,11 @@ draw_controls_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrec
 		// TODO(Oskar): Sliders can take up full width just as dropdowns..
 		r.x = window_rect.x + pad;
 		r.w = w * 0.1 + xx simp.prepare_text(g_slider_font, " Direction X: 10.000 ");
-		getrect.slider(r, *animation_speed_in_fps, -10.0, 10.0, -0.2, *slider_theme, "Direction X: ", "");
+		getrect.slider(r, *directional_light_direction.x, -1.0, 1.0, directional_light_direction.x, *slider_theme, "Direction X: ", "");
 		r.y -= r.h + pad;
-		getrect.slider(r, *animation_speed_in_fps, -10.0, 10.0, -0.2, *slider_theme, "Direction Y: ", "");
+		getrect.slider(r, *directional_light_direction.y, -1.0, 1.0, directional_light_direction.y, *slider_theme, "Direction Y: ", "");
 		r.y -= r.h + pad;
-		getrect.slider(r, *animation_speed_in_fps, -10.0, 10.0, -0.2, *slider_theme, "Direction Z: ", "");
+		getrect.slider(r, *directional_light_direction.z, -1.0, 1.0, directional_light_direction.z, *slider_theme, "Direction Z: ", "");
 	}
 	r.y -= r.h + pad;
 
@@ -509,6 +549,10 @@ draw_controls_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrec
 
 		r.w = window_rect.w - label_width - pad * 2;
 		pressed := getrect.button(r, "Open", *button_theme);
+
+		if pressed {
+			directional_light_ambient_subwindow.open = !directional_light_ambient_subwindow.open;
+		}
 	}
 	r.y -= r.h + pad;
 
@@ -524,6 +568,10 @@ draw_controls_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrec
 
 		r.w = window_rect.w - label_width - pad * 2;
 		pressed := getrect.button(r, "Open", *button_theme);
+
+		if pressed {
+			directional_light_diffuse_subwindow.open = !directional_light_diffuse_subwindow.open;
+		}
 	}
 	r.y -= r.h + pad;
 
@@ -539,6 +587,10 @@ draw_controls_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrec
 
 		r.w = window_rect.w - label_width - pad * 2;
 		pressed := getrect.button(r, "Open", *button_theme);
+
+		if pressed {
+			directional_light_specular_subwindow.open = !directional_light_specular_subwindow.open;
+		}
 	}
 	r.y -= r.h + pad;
 
@@ -553,6 +605,27 @@ draw_directional_light_ambient_subwindow :: (state: *getrect.Subwindow_State, wi
 	getrect.set_default_theme(theme);
 
 	color_picker_theme := *theme.color_picker_theme;
-	picked_color := Vector3.{ 1.0, 1.0, 1.0 };
-	applied := getrect.color_picker(window_rect, *picked_color, color_picker_theme);
+	applied := getrect.color_picker(window_rect, *directional_light_ambient_color, color_picker_theme);
+}
+
+draw_directional_light_diffuse_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrect.Rect, data: *void) {
+	using g_params;
+
+	theme_proc := getrect.default_theme_procs[xx getrect.Default_Themes.Bentonite];
+	theme = theme_proc();
+	getrect.set_default_theme(theme);
+
+	color_picker_theme := *theme.color_picker_theme;
+	applied := getrect.color_picker(window_rect, *directional_light_diffuse_color, color_picker_theme);
+}
+
+draw_directional_light_specular_subwindow :: (state: *getrect.Subwindow_State, window_rect: getrect.Rect, data: *void) {
+	using g_params;
+
+	theme_proc := getrect.default_theme_procs[xx getrect.Default_Themes.Bentonite];
+	theme = theme_proc();
+	getrect.set_default_theme(theme);
+
+	color_picker_theme := *theme.color_picker_theme;
+	applied := getrect.color_picker(window_rect, *directional_light_specular_color, color_picker_theme);
 }
