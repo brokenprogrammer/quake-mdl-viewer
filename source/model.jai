@@ -12,14 +12,14 @@ AnimationFrame :: struct {
     texcoords: []Vector2_GLfloat;
 }
 
-Animation :: struct {
+ModelAnimation :: struct {
     name: string;
     frames: [..]AnimationFrame;
 }
 
 Model :: struct {
     // vertices: []Vertex;
-    animations: [..]Animation;
+    animations: [..]ModelAnimation;
     vertex_count: u32;
     skins: []Skin;
     transform: *TG_RigidTransform_t;
@@ -134,7 +134,7 @@ model_create_from_mdl :: (mdl_model: MDLModel) -> Model {
         if animation_does_exist {
             array_add(*model.animations[animation_index].frames, animation_frame);
         } else {
-            animation: Animation;
+            animation: ModelAnimation;
             animation.name = frame_name;
             array_add(*animation.frames, animation_frame);
             array_add(*model.animations, animation);
@@ -218,7 +218,7 @@ model_create_from_md2 :: (md2_model: MD2Model) -> Model {
         if animation_does_exist {
             array_add(*model.animations[animation_index].frames, animation_frame);
         } else {
-            animation: Animation;
+            animation: ModelAnimation;
             animation.name = frame_name;
             array_add(*animation.frames, animation_frame);
             array_add(*model.animations, animation);

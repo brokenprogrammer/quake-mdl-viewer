@@ -243,6 +243,8 @@ pcx_load :: (file: File, pcx_file_offset: int, pcx_file_size: int) -> PCXImage, 
     return pcx_image, true;
 }
 
+// TODO(Oskar): Fix convention to look more like load function.
+// TODO(Oskar): Support for building color_palette with all unique colors in texture.
 pcx_write :: (filename: string, rgb_data: []u8, width: s32, height: s32, color_palette: []Vector3_U8) -> bool {
     pcx_logger_data := project_setup_logger("[PCX Loader]");
     defer project_cleanup_logger(pcx_logger_data);
