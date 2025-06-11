@@ -492,7 +492,7 @@ update_frame :: (delta_time : float, pak_files: []PakFile)
 
 						for mdl_model.images {
 							pcx_name := tprint("%.pcx", it.name);
-							pcx_write(pcx_name, it.data, xx it.width, xx it.height);
+							pcx_write(pcx_name, it.data, xx it.width, xx it.height, default_mdl_color_palette);
 						}
 					}
 

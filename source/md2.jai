@@ -377,7 +377,6 @@ load_md2 :: (md2_file: File) -> MD2Model, bool {
         
         image, suck := pcx_load(file, 0, file_size);
         md2_model.images[skin_index] = image;
-        break;
     }
 
     return md2_model, true;

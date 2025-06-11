@@ -243,7 +243,10 @@ pcx_load :: (file: File, pcx_file_offset: int, pcx_file_size: int) -> PCXImage, 
     return pcx_image, true;
 }
 
-pcx_write :: (filename: string, rgb_data: []u8, width: s32, height: s32) -> bool {
+pcx_write :: (filename: string, rgb_data: []u8, width: s32, height: s32, color_palette: []Vector3_U8) -> bool {
+    pcx_logger_data := project_setup_logger("[PCX Loader]");
+    defer project_cleanup_logger(pcx_logger_data);
+
     // Ensure the RGB data size matches width * height * 3
     expected_size := width * height * 3;
     if rgb_data.count != expected_size {
@@ -251,60 +254,18 @@ pcx_write :: (filename: string, rgb_data: []u8, width: s32, height: s32) -> bool
         return false;
     }
 
-    // Create palette by collecting unique colors (up to 256)
-    palette: [..]Vector3_U8;
-    palette_lookup: Table(u32, u8);  // Maps RGB values to palette indices
-    init(*palette_lookup, 256);
-    defer deinit(*palette_lookup);
-
-    // Function to add a color to the palette
-    add_color_to_palette :: (r: u8, g: u8, b: u8, palette: *[..]Vector3_U8, lookup: *Table(u32, u8)) -> u8 {
-        // Create a single u32 from RGB components for the lookup table
-        key := (cast(u32)r << 16) | (cast(u32)g << 8) | b;
-        
-        // Check if this color is already in the palette
-        index, found := table_find(lookup, key);
-        if found return index;
-        
-        // If palette is full, return the nearest color
-        if palette.count >= 256 {
-            return find_nearest_color(r, g, b, palette.*);
-        }
-        
-        // Add new color to palette
-        index = cast(u8)palette.count;
-        array_add(palette, Vector3_U8.{r, g, b});
-        table_set(lookup, key, index);
-        return index;
+    // Validate palette size
+    if color_palette.count == 0 {
+        log("Color palette is empty", flags=.ERROR);
+        return false;
+    }
+    
+    if color_palette.count > 256 {
+        log("Color palette too large (%), maximum is 256", color_palette.count, flags=.ERROR);
+        return false;
     }
 
-    // First pass: build the palette
-    for y: 0..height-1 {
-        for x: 0..width-1 {
-            idx := (y * width + x) * 3;
-            r := rgb_data[idx];
-            g := rgb_data[idx + 1];
-            b := rgb_data[idx + 2];
-            
-            add_color_to_palette(r, g, b, *palette, *palette_lookup);
-            
-            // Stop if we have 256 colors (palette is full)
-            if palette.count == 256 break;
-        }
-        if palette.count == 256 break;
-    }
-    
-    // Ensure we have at least one color in the palette
-    if palette.count == 0 {
-        array_add(*palette, Vector3_U8.{0, 0, 0});
-    }
-    
-    // Fill the rest of the palette with black if needed
-    while palette.count < 256 {
-        array_add(*palette, Vector3_U8.{0, 0, 0});
-    }
-    
-    // Second pass: create indexed data
+    // Convert RGB data to indexed data using the provided palette
     indexed_data := NewArray(width * height, u8);
     defer array_free(indexed_data);
     
@@ -315,15 +276,8 @@ pcx_write :: (filename: string, rgb_data: []u8, width: s32, height: s32) -> bool
             g := rgb_data[idx + 1];
             b := rgb_data[idx + 2];
             
-            // Get color index from palette
-            key := (cast(u32)r << 16) | (cast(u32)g << 8) | b;
-            color_idx, found := table_find(*palette_lookup, key);
-            
-            if !found {
-                // Find nearest color if not found (happens if palette filled up)
-                color_idx = find_nearest_color(r, g, b, palette);
-            }
-            
+            // Find the nearest color in the palette
+            color_idx := find_nearest_color(r, g, b, color_palette);
             indexed_data[y * width + x] = color_idx;
         }
     }
@@ -369,13 +323,14 @@ pcx_write :: (filename: string, rgb_data: []u8, width: s32, height: s32) -> bool
     palette_data := NewArray(256 * 3, u8);
     defer array_free(palette_data);
     
+    // Fill palette data from the provided color_palette
     for i: 0..255 {
-        if i < palette.count {
-            palette_data[i*3]     = palette[i].x;
-            palette_data[i*3 + 1] = palette[i].y;
-            palette_data[i*3 + 2] = palette[i].z;
+        if i < color_palette.count {
+            palette_data[i*3]     = color_palette[i].x;
+            palette_data[i*3 + 1] = color_palette[i].y;
+            palette_data[i*3 + 2] = color_palette[i].z;
         } else {
-            // This shouldn't happen since we padded the palette to 256 entries
+            // Pad remaining entries with black
             palette_data[i*3]     = 0;
             palette_data[i*3 + 1] = 0;
             palette_data[i*3 + 2] = 0;
