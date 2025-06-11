@@ -5,6 +5,7 @@
 #import "GL";
 #import "Math";
 #import "File";
+#import "Hash_Table";
 
 simp :: #import "Simp";
 getrect :: #import "GetRect";
@@ -24,6 +25,7 @@ getrect :: #import "GetRect";
 #load "console.jai";
 #load "commands.jai";
 #load "gizmo.jai";
+#load "convert.jai";
 
 g_window : Window_Type;
 g_current_window_width, g_current_window_height : s32;
@@ -156,6 +158,42 @@ handle_window_event :: (event : Event)
 
 				mdl_model := load_mdl(file);
 				g_model = model_create_from_mdl(mdl_model);
+
+				array_free(g_params.animation_names);
+				g_params.animation_names = model_get_animation_names(g_model);
+				g_params.animation_index = 0;
+
+				array_free(g_params.skin_names);
+				g_params.skin_names = model_get_skin_names(g_model);
+				g_params.skin_index = 0;
+
+				array_add(*g_pak_files, pak_file);
+				array_add(*g_model_file_names, file_name);
+				g_params.mdl_names = g_model_file_names;
+				update_buffers(g_model);
+
+				model_name_found, mdl_file_index := array_find(g_model_file_names, file_name);
+                if model_name_found {
+                    g_params.mdl_index = xx mdl_file_index;
+	                g_params.mdl_index_last_frame = g_params.mdl_index;
+                }
+			} else if contains(it, ".md2") {
+				file, file_success := file_open(it);
+				if !file_success {
+					print("Could not open md2 file!\n");
+					return;
+				}
+
+				file_name := it;
+
+				pak_file: PakFile;
+				memcpy(pak_file.name.data, file_name.data, file_name.count);
+				pak_file.offset = 0;
+				pak_file.size = xx file_length(file);
+				pak_file.file = file;
+
+				md2_model := load_md2(file);
+				g_model = model_create_from_md2(md2_model);
 
 				array_free(g_params.animation_names);
 				g_params.animation_names = model_get_animation_names(g_model);
@@ -443,7 +481,21 @@ update_frame :: (delta_time : float, pak_files: []PakFile)
 					// }
 
 					// TODO(Oskar): There is no cleanup for mdl_model here..
-					mdl_model := load_mdl(it, g_pak_files); 
+					mdl_model := load_mdl(it, g_pak_files);
+					
+					scene := convert_mdl_to_ir(mdl_model);
+					success := convert_ir_to_md2(scene, "output.md2");
+					if !success {
+						log("Failed to convert to md2");
+					} else {
+						log("Successfully converted to md2");
+
+						for mdl_model.images {
+							pcx_name := tprint("%.pcx", it.name);
+							pcx_write(pcx_name, it.data, xx it.width, xx it.height);
+						}
+					}
+
 					g_model = model_create_from_mdl(mdl_model);
 
 					array_free(g_params.animation_names);
