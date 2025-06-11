@@ -1,3 +1,4 @@
+#scope_file 
 // Track unique vertex combinations (position + UV + normal)
 VertexKey :: struct {
     vertex_index: u32;
@@ -5,6 +6,24 @@ VertexKey :: struct {
     is_seam_vertex: bool;
     is_back_face: bool;
 }
+
+vertexkey_compare :: (a: VertexKey, b: VertexKey) -> bool {
+    return a.vertex_index == b.vertex_index && 
+           a.texcoord_index == b.texcoord_index && 
+           a.is_seam_vertex == b.is_seam_vertex && 
+           a.is_back_face == b.is_back_face;
+}
+
+vertexkey_get_hash :: (key: VertexKey) -> u32 {
+    hash: u32 = 0;
+    hash = hash * 31 + key.vertex_index;
+    hash = hash * 31 + key.texcoord_index;
+    hash = hash * 31 + cast(u32)key.is_seam_vertex;
+    hash = hash * 31 + cast(u32)key.is_back_face;
+    return hash;
+}
+
+#scope_export
 
 // MDL to IR conversion function
 convert_mdl_to_ir :: (mdl_model: MDLModel) -> Scene {
@@ -168,20 +187,4 @@ convert_mdl_to_ir :: (mdl_model: MDLModel) -> Scene {
     array_free(expanded_texcoords);
     
     return scene;
-}
-
-vertexkey_compare :: (a: VertexKey, b: VertexKey) -> bool {
-    return a.vertex_index == b.vertex_index && 
-           a.texcoord_index == b.texcoord_index && 
-           a.is_seam_vertex == b.is_seam_vertex && 
-           a.is_back_face == b.is_back_face;
-}
-
-vertexkey_get_hash :: (key: VertexKey) -> u32 {
-    hash: u32 = 0;
-    hash = hash * 31 + key.vertex_index;
-    hash = hash * 31 + key.texcoord_index;
-    hash = hash * 31 + cast(u32)key.is_seam_vertex;
-    hash = hash * 31 + cast(u32)key.is_back_face;
-    return hash;
 }

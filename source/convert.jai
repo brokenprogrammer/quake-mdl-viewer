@@ -7,6 +7,7 @@
 
 #load "converters/common.jai";
 #load "converters/mdl_to_ir.jai";
+#load "converters/md2_to_ir.jai";
 #load "converters/ir_to_md2.jai";
 
 // Cleanup function for the scene

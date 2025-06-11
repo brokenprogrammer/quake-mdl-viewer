@@ -169,7 +169,19 @@ PCXImage :: struct {
     data_count: u64;
     width: u64;
     height: u64;
+    palette: []Vector3_U8;
 };
+
+pcx_cleanup :: (pcx_image: *PCXImage) {
+    if pcx_image.data {
+        free(pcx_image.data);
+        pcx_image.data = null;
+    }
+    array_free(pcx_image.palette);
+    pcx_image.data_count = 0;
+    pcx_image.width = 0;
+    pcx_image.height = 0;
+}
 
 pcx_load :: (file: File, pcx_file_offset: int, pcx_file_size: int) -> PCXImage, bool {
     pcx_logger_data := project_setup_logger("[PCX Loader]");
@@ -224,15 +236,23 @@ pcx_load :: (file: File, pcx_file_offset: int, pcx_file_size: int) -> PCXImage, 
     if !palette_read_success {
         return .{}, false;
     }
-    defer array_free(palette_data);
+
+    // Convert palette data to Vector3_U8 array
+    palette := NewArray(256, Vector3_U8);
+    for i: 0..255 {
+        palette[i].x = palette_data[i*3];
+        palette[i].y = palette_data[i*3 + 1];
+        palette[i].z = palette_data[i*3 + 2];
+    }
+    array_free(palette_data); // Now we can free the raw palette data
 
     pixel_count := cast(u64) texture_data_size * 3;
     pixels := cast(*u8) alloc(xx pixel_count);
     for 0..(texture_data_size - 1) {
         color_index: int = decoded_data[it];
-        pixels[it * 3 + 0] = palette_data[color_index * 3 + 0];
-        pixels[it * 3 + 1] = palette_data[color_index * 3 + 1];
-        pixels[it * 3 + 2] = palette_data[color_index * 3 + 2];
+        pixels[it * 3 + 0] = palette[color_index].x;
+        pixels[it * 3 + 1] = palette[color_index].y;
+        pixels[it * 3 + 2] = palette[color_index].z;
     }
 
     pcx_image: PCXImage;
@@ -240,6 +260,7 @@ pcx_load :: (file: File, pcx_file_offset: int, pcx_file_size: int) -> PCXImage, 
     pcx_image.data_count = pixel_count;
     pcx_image.width = pcx_header.width;
     pcx_image.height = pcx_header.height;
+    pcx_image.palette = palette;
     return pcx_image, true;
 }
 
@@ -333,6 +354,99 @@ pcx_write :: (filename: string, rgb_data: []u8, width: s32, height: s32, color_p
             palette_data[i*3 + 2] = color_palette[i].z;
         } else {
             // Pad remaining entries with black
+            palette_data[i*3]     = 0;
+            palette_data[i*3 + 1] = 0;
+            palette_data[i*3 + 2] = 0;
+        }
+    }
+    
+    file_write(*file, palette_data.data, palette_data.count);
+    
+    return true;
+}
+
+pcx_write_image :: (pcx_image: PCXImage, filename: string) -> bool {
+    pcx_logger_data := project_setup_logger("[PCX Loader]");
+    defer project_cleanup_logger(pcx_logger_data);
+
+    if !pcx_image.data || pcx_image.data_count == 0 {
+        log("PCXImage has no data", flags=.ERROR);
+        return false;
+    }
+
+    if pcx_image.palette.count == 0 {
+        log("PCXImage has no palette", flags=.ERROR);
+        return false;
+    }
+
+    width := cast(s32)pcx_image.width;
+    height := cast(s32)pcx_image.height;
+    
+    // Convert RGB data back to indexed data using the stored palette
+    indexed_data := NewArray(width * height, u8);
+    defer array_free(indexed_data);
+    
+    for y: 0..height-1 {
+        for x: 0..width-1 {
+            pixel_idx := (y * width + x) * 3;
+            r := pcx_image.data[pixel_idx];
+            g := pcx_image.data[pixel_idx + 1];
+            b := pcx_image.data[pixel_idx + 2];
+            
+            // Find the matching color in the palette
+            color_idx := find_nearest_color(r, g, b, pcx_image.palette);
+            indexed_data[y * width + x] = color_idx;
+        }
+    }
+    
+    // Create PCX header
+    header: PCXHeader;
+    header.manafacturer = 10;
+    header.version = 5;
+    header.encoding = 1;
+    header.bits_per_pixel = 8;
+    header.x = 0;
+    header.y = 0;
+    header.width = cast(u16)(width - 1);
+    header.height = cast(u16)(height - 1);
+    header.horzizontal_resolution = 72;
+    header.vertical_resolution = 72;
+    header.number_of_color_planes = 1;
+    header.bytes_per_scan_line = cast(u16)width;
+    header.palette_type = 1;
+    
+    // Open output file
+    file, success := file_open(filename, true);
+    if !success {
+        log("Failed to open output file: %", filename, flags=.ERROR);
+        return false;
+    }
+    defer file_close(*file);
+    
+    // Write PCX header
+    file_write(*file, *header, size_of(PCXHeader));
+    
+    // Write RLE-encoded pixel data
+    encoded_data := pcx_encode_rle(indexed_data, width, height);
+    defer array_free(encoded_data);
+    
+    file_write(*file, encoded_data.data, encoded_data.count);
+    
+    // Write palette marker
+    palette_marker: u8 = 0x0C;
+    file_write(*file, *palette_marker, 1);
+    
+    // Write palette data (256 RGB triplets)
+    palette_data := NewArray(256 * 3, u8);
+    defer array_free(palette_data);
+    
+    for i: 0..255 {
+        if i < pcx_image.palette.count {
+            palette_data[i*3]     = pcx_image.palette[i].x;
+            palette_data[i*3 + 1] = pcx_image.palette[i].y;
+            palette_data[i*3 + 2] = pcx_image.palette[i].z;
+        } else {
+            // Pad with black
             palette_data[i*3]     = 0;
             palette_data[i*3 + 1] = 0;
             palette_data[i*3 + 2] = 0;

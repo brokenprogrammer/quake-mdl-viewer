@@ -511,6 +511,22 @@ update_frame :: (delta_time : float, pak_files: []PakFile)
 					update_buffers(g_model);
 				} else if ends_with(file_name, "md2") {
 					md2_model := load_md2(it, pak_files);
+
+					scene := convert_md2_to_ir(md2_model);
+					success := convert_ir_to_md2(scene, "new_output.md2");
+					if !success {
+						log("Failed to convert to md2");
+					} else {
+						log("Successfully converted to md2");
+
+						for md2_model.images {
+							skin_name := to_string(md2_model.skins[it_index].name.data);
+							skin_name = strip_path(skin_name);
+
+							pcx_write_image(it, skin_name);
+						}
+					}
+
 					g_model = model_create_from_md2(md2_model);
 					md2_model_cleanup(md2_model);
 
