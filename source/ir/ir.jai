@@ -123,7 +123,7 @@ Primitive :: struct {
 // Mesh representation
 MorphTarget :: struct {
     name: string;
-    attributes: []VertexAttribute;  // Usually POSITION, NORMAL, TANGENT
+    attributes: [..]VertexAttribute;  // Usually POSITION, NORMAL, TANGENT
     weight: float32 = 0.0;
 }
 

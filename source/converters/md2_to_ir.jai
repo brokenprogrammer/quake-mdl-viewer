@@ -169,11 +169,11 @@ convert_md2_to_ir :: (md2_model: MD2Model) -> Scene {
 convert_md2_to_ir_with_morph_targets :: (md2_model: MD2Model) -> Scene {
     scene: Scene;
     scene.name = "MD2 Model";
-    scene.metadata.generator = "MD2 Converter";
+    scene.metadata.generator = "MD2 Converter with Morph Targets";
     scene.metadata.up_axis = .Z_UP;
     scene.metadata.handedness = .LEFT_HANDED;
     
-    // Create textures and materials (same as above)
+    // Create textures and materials (same as basic version)
     for skin, skin_index: md2_model.skins {
         texture := New(Texture);
         skin_name := strip_extension(strip_path(to_string(skin.name.data)));
@@ -183,7 +183,6 @@ convert_md2_to_ir_with_morph_targets :: (md2_model: MD2Model) -> Scene {
         
         if skin_index < md2_model.images.count {
             pcx_image := md2_model.images[skin_index];
-            // texture.embedded_data = array_copy(pcx_image.data);
             texture.width = xx pcx_image.width;
             texture.height = xx pcx_image.height;
         }
@@ -205,15 +204,20 @@ convert_md2_to_ir_with_morph_targets :: (md2_model: MD2Model) -> Scene {
     
     // Create mesh with morph targets
     mesh := New(Mesh);
-    mesh.name = "MD2 Mesh";
+    mesh.name = "MD2 Mesh with Morph Targets";
     
     if md2_model.frames.count == 0 {
         array_add(*scene.meshes, mesh);
         return scene;
     }
     
+    // Build vertex expansion mapping once - this is crucial!
     vertex_map: Table(VertexKey, u32, vertexkey_get_hash, vertexkey_compare);
     defer deinit(*vertex_map);
+    
+    // Store the vertex expansion order for morph targets
+    vertex_expansion_order: [..]VertexKey;
+    defer array_free(vertex_expansion_order);
     
     expanded_positions: [..]Vector3_Float32;
     expanded_normals: [..]Vector3_Float32;
@@ -223,7 +227,7 @@ convert_md2_to_ir_with_morph_targets :: (md2_model: MD2Model) -> Scene {
     current_vertex_index: u32 = 0;
     first_frame := md2_model.frames[0];
     
-    // Process each triangle properly
+    // Process triangles and build expansion mapping
     for triangle: md2_model.triangles {
         for corner: 0..2 {
             vertex_idx := triangle.vertex[corner];
@@ -233,13 +237,14 @@ convert_md2_to_ir_with_morph_targets :: (md2_model: MD2Model) -> Scene {
             key.vertex_index = cast(u32)vertex_idx;
             key.texcoord_index = cast(u32)texcoord_idx;
             
-            // Check if we already have this vertex+texcoord combination
             existing_index, found := table_find(*vertex_map, key);
             
             if found {
                 array_add(*triangle_indices, existing_index);
             } else {
-                // Create new expanded vertex
+                // Store the expansion order for morph targets
+                array_add(*vertex_expansion_order, key);
+                
                 md2_vertex := first_frame.vertices[vertex_idx];
                 
                 // Decompress position
@@ -256,7 +261,7 @@ convert_md2_to_ir_with_morph_targets :: (md2_model: MD2Model) -> Scene {
                     normal = .{0, 0, 1};
                 }
                 
-                // Get texture coordinates using the correct index
+                // Get texture coordinates
                 texcoord := md2_model.texcoords[texcoord_idx];
                 u := cast(float32)texcoord.s / cast(float32)md2_model.skin_width;
                 v := cast(float32)texcoord.t / cast(float32)md2_model.skin_height;
@@ -272,7 +277,7 @@ convert_md2_to_ir_with_morph_targets :: (md2_model: MD2Model) -> Scene {
         }
     }
     
-    // Create primitive with expanded data
+    // Create base primitive
     primitive: Primitive;
     primitive.topology = .TRIANGLES;
     
@@ -296,7 +301,7 @@ convert_md2_to_ir_with_morph_targets :: (md2_model: MD2Model) -> Scene {
         primitive.material = scene.materials[0];
     }
     
-    // Create morph targets for additional frames
+    // Create morph targets for additional frames using the same vertex expansion order
     for frame, frame_index: md2_model.frames {
         if frame_index == 0 continue; // Skip first frame (it's the base)
         
@@ -308,15 +313,21 @@ convert_md2_to_ir_with_morph_targets :: (md2_model: MD2Model) -> Scene {
         morph_position_attr := create_vertex_attribute(.POSITION);
         morph_normal_attr := create_vertex_attribute(.NORMAL);
         
-        for vertex: frame.vertices {
-            pos: Vector3_Float32;
-            pos.x = cast(float32)vertex.pos.x * frame.scale.x + frame.translate.x;
-            pos.y = cast(float32)vertex.pos.y * frame.scale.y + frame.translate.y;
-            pos.z = cast(float32)vertex.pos.z * frame.scale.z + frame.translate.z;
+        // Use the SAME expansion order as the base mesh
+        for expansion_key: vertex_expansion_order {
+            vertex_idx := expansion_key.vertex_index;
+            md2_vertex := frame.vertices[vertex_idx];
             
+            // Decompress position for this frame
+            pos: Vector3_Float32;
+            pos.x = cast(float32)md2_vertex.pos.x * frame.scale.x + frame.translate.x;
+            pos.y = cast(float32)md2_vertex.pos.y * frame.scale.y + frame.translate.y;
+            pos.z = cast(float32)md2_vertex.pos.z * frame.scale.z + frame.translate.z;
+            
+            // Get normal for this frame
             normal: Vector3_Float32;
-            if vertex.normal_index < anorms_table.count {
-                normal = anorms_table[vertex.normal_index];
+            if md2_vertex.normal_index < anorms_table.count {
+                normal = anorms_table[md2_vertex.normal_index];
             } else {
                 normal = .{0, 0, 1};
             }
@@ -325,16 +336,54 @@ convert_md2_to_ir_with_morph_targets :: (md2_model: MD2Model) -> Scene {
             add_vec3_to_attribute(*morph_normal_attr, normal);
         }
         
-        morph_target.attributes = VertexAttribute.[morph_position_attr, morph_normal_attr];
+        array_add(*morph_target.attributes, morph_position_attr);
+        array_add(*morph_target.attributes, morph_normal_attr);
         array_add(*mesh.morph_targets, morph_target);
     }
     
     array_add(*mesh.primitives, primitive);
     array_add(*scene.meshes, mesh);
     
+    // Create animation data for morph target weights
+    if md2_model.frames.count > 1 {
+        animation := New(Animation);
+        animation.name = "MD2 Morph Animation";
+        animation.duration = cast(float32)(md2_model.frames.count - 1);
+        animation.ticks_per_second = 10.0; // Standard MD2 animation speed
+        animation.looping = true;
+        
+        // Create weight channels for each morph target
+        for morph_target, target_index: mesh.morph_targets {
+            channel: AnimationChannel;
+            channel.target_type = .WEIGHTS;
+            channel.target_index = cast(s32)target_index;
+            channel.custom_target_name = morph_target.name;
+            
+            // Create keyframes - simple on/off animation
+            for frame_idx: 0..md2_model.frames.count-1 {
+                keyframe: Keyframe_Float;
+                keyframe.time = cast(float32)frame_idx;
+                
+                // Weight is 1.0 when this is the active frame, 0.0 otherwise
+                if frame_idx == target_index + 1 { // +1 because morph targets start from frame 1
+                    keyframe.value = 1.0;
+                } else {
+                    keyframe.value = 0.0;
+                }
+                
+                keyframe.interpolation = .STEP; // Sharp transitions between frames
+                array_add(*channel.float_keyframes, keyframe);
+            }
+            
+            array_add(*animation.channels, channel);
+        }
+        
+        array_add(*scene.animations, animation);
+    }
+    
     // Create root node
     root_node := New(Node);
-    root_node.name = "MD2 Root";
+    root_node.name = "MD2 Root with Morph Targets";
     root_node.mesh = mesh;
     array_add(*scene.root_nodes, root_node);
     

@@ -59,7 +59,7 @@ convert_ir_to_md2 :: (scene: Scene, output_file: string) -> bool {
             uv := texcoord_attr.data[i].vec2_value;
             
             // Convert to MD2 format without additional seam processing
-            // The seams have already been handled in the MDL->IR conversion
+            // The seams have already been handled in the MD2->IR conversion
             md2_model.texcoords[i].s = cast(s16)(uv.x * cast(float32)md2_model.skin_width);
             md2_model.texcoords[i].t = cast(s16)(uv.y * cast(float32)md2_model.skin_height);
         }
@@ -86,13 +86,39 @@ convert_ir_to_md2 :: (scene: Scene, output_file: string) -> bool {
         md2_model.triangles[i].texcoord_indice[2] = cast(u16)primitive.indices[base_index + 2];
     }
 
-    // Convert frames
-    md2_model.frames = NewArray(1, MD2Frame);
+    // Convert frames - base frame + morph targets
+    total_frames := 1 + mesh.morph_targets.count;
+    md2_model.frames = NewArray(total_frames, MD2Frame);
     
+    // Convert base frame (frame 0)
     success := convert_frame_to_md2(*md2_model.frames[0], position_attr, normal_attr, vertex_count, "base");
     if !success {
         cleanup_md2_model(*md2_model);
         return false;
+    }
+
+    // Convert morph target frames
+    for morph_target, morph_index: mesh.morph_targets {
+        frame_index := morph_index + 1; // Morph targets start from frame 1
+        
+        // Find position and normal attributes in morph target
+        morph_position_attr := find_morph_attribute(morph_target, .POSITION);
+        morph_normal_attr := find_morph_attribute(morph_target, .NORMAL);
+        
+        if !morph_position_attr {
+            log("Morph target % missing position attribute", morph_index, flags=.ERROR);
+            cleanup_md2_model(*md2_model);
+            return false;
+        }
+        
+        // Use morph target name or generate one
+        frame_name := ifx morph_target.name.count > 0 then morph_target.name else tprint("frame_%", frame_index);
+        
+        success = convert_frame_to_md2(*md2_model.frames[frame_index], morph_position_attr, morph_normal_attr, vertex_count, frame_name);
+        if !success {
+            cleanup_md2_model(*md2_model);
+            return false;
+        }
     }
 
     // Write MD2 file
@@ -117,7 +143,7 @@ cleanup_md2_model :: (md2_model: *MD2Model) {
 // Helper function to convert a frame's vertex data to MD2 format
 convert_frame_to_md2 :: (frame: *MD2Frame, position_attr: *VertexAttribute, normal_attr: *VertexAttribute, vertex_count: int, frame_name: string) -> bool {
     if position_attr.data.count != vertex_count {
-        log("Position attribute vertex count mismatch", flags=.ERROR);
+        log("Position attribute vertex count mismatch: expected %, got %", vertex_count, position_attr.data.count, flags=.ERROR);
         return false;
     }
 
@@ -140,12 +166,11 @@ convert_frame_to_md2 :: (frame: *MD2Frame, position_attr: *VertexAttribute, norm
         result.x = a.x - b.x;
         result.y = a.y - b.y;
         result.z = a.z - b.z;
-
         return result;
     }
 
     // Calculate scale and translate for compression
-    range := vec_minus(max_pos, min_pos);//max_pos - min_pos;
+    range := vec_minus(max_pos, min_pos);
     frame.scale.x = range.x / 255.0;
     frame.scale.y = range.y / 255.0;
     frame.scale.z = range.z / 255.0;
@@ -174,13 +199,14 @@ convert_frame_to_md2 :: (frame: *MD2Frame, position_attr: *VertexAttribute, norm
         
         frame.vertices[i].pos = compressed_pos;
         
-        if normal_attr {
+        if normal_attr && i < normal_attr.data.count {
             normal_vec := normal_attr.data[i].vec3_value;
-            // Find closest normal in MD2 normal table (similar to anorms_table)
+            // Find closest normal in MD2 normal table
             frame.vertices[i].normal_index = find_closest_normal_index(normal_vec);
+        } else {
+            // Default normal index (pointing up)
+            frame.vertices[i].normal_index = 0;
         }
-        // // Set default normal index (pointing up)
-        // frame.vertices[i].normal_index = 0; // You might want to calculate proper normals
     }
 
     return true;
@@ -190,7 +216,7 @@ convert_frame_to_md2 :: (frame: *MD2Frame, position_attr: *VertexAttribute, norm
 write_md2_file :: (md2_model: MD2Model, filename: string) -> bool {
     file, success := file_open(filename, true);
     if !success {
-        log("Failed to open output file", flags=.ERROR);
+        log("Failed to open output file: %", filename, flags=.ERROR);
         return false;
     }
     defer file_close(*file);
@@ -205,7 +231,7 @@ write_md2_file :: (md2_model: MD2Model, filename: string) -> bool {
     header.vertex_count = cast(s32)md2_model.frames[0].vertices.count;
     header.texture_coordinate_count = cast(s32)md2_model.texcoords.count;
     header.triangle_count = cast(s32)md2_model.triangles.count;
-    header.frame_count = cast(s32)md2_model.frames.count;
+    header.frame_count = cast(s32)md2_model.frames.count; // Now includes all frames!
     header.gl_commands_count = 0; // Not implementing GL commands
 
     // Calculate frame size
@@ -257,7 +283,7 @@ write_md2_file :: (md2_model: MD2Model, filename: string) -> bool {
         return false;
     }
 
-    // Write frames
+    // Write all frames (base + morph targets)
     for frame: md2_model.frames {
         // Write frame header (scale, translate, name)
         write_success = file_write(*file, *frame.scale, size_of(Vector3_Float32));
@@ -286,5 +312,6 @@ write_md2_file :: (md2_model: MD2Model, filename: string) -> bool {
         }
     }
 
+    log("Successfully wrote MD2 file with % frames", md2_model.frames.count);
     return true;
 }

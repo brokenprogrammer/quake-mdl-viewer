@@ -483,7 +483,7 @@ update_frame :: (delta_time : float, pak_files: []PakFile)
 					// TODO(Oskar): There is no cleanup for mdl_model here..
 					mdl_model := load_mdl(it, g_pak_files);
 					
-					scene := convert_mdl_to_ir(mdl_model);
+					scene := convert_mdl_to_ir_with_morph_targets(mdl_model);
 					success := convert_ir_to_md2(scene, "output.md2");
 					if !success {
 						log("Failed to convert to md2");
@@ -512,7 +512,7 @@ update_frame :: (delta_time : float, pak_files: []PakFile)
 				} else if ends_with(file_name, "md2") {
 					md2_model := load_md2(it, pak_files);
 
-					scene := convert_md2_to_ir(md2_model);
+					scene := convert_md2_to_ir_with_morph_targets(md2_model);
 					success := convert_ir_to_md2(scene, "new_output.md2");
 					if !success {
 						log("Failed to convert to md2");
