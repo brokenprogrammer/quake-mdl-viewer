@@ -11,6 +11,7 @@ simp :: #import "Simp";
 getrect :: #import "GetRect";
 #import "stb_image";
 #import "tinygizmo";
+#import "cgltf";
 
 #load "util.jai";
 #load "model.jai";
